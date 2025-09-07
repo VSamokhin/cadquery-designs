@@ -1,9 +1,42 @@
+# BSD 3-Clause License
+#
+# Copyright (c) 2025, Viktor Samokhin (wowyupiyo@gmail.com)
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# v0.0.1
+
 import cadquery as cq
 from cadquery import Workplane
 from ocp_vscode import show_object
+import os
 
 # Toggle exports (set True when you want STL/STEP files written)
-DO_EXPORT = False
+DO_STL_EXPORT = True
+DO_STEP_EXPORT = True
 
 # Configuration (tweak if needed)
 WIDTH_PREAMP, LENGTH_PREAMP, HEIGHT = 120.0, 150.0, 50.0
@@ -225,54 +258,80 @@ def add_psu_rear_connectors(base: Workplane, width_psu=WIDTH_PSU, power_dia=POWE
             .pushPoints([(width_psu/2.0 - power_dia/2.0 - hole_x_offset - wall_thick, 0)])
             .hole(power_dia, depth=wall_thick))  # Ground terminal hole below socket
 
-# Build and assemble preamp case
-preamp_base = build_base(WIDTH_PREAMP, LENGTH_PREAMP)
-preamp_base = add_bottom_mounts(preamp_base, spacing_x=95.0, spacing_y=115.0)
-preamp_base = add_preamp_rear_connectors(preamp_base)
+# Export functions
+def export_models(preamp_base: Workplane, preamp_lid: Workplane, power_base: Workplane, power_lid: Workplane):
+    """Export all models to STL and STEP formats"""
 
-# Build preamp lid (top + side walls)
-preamp_lid = build_lid(WIDTH_PREAMP, LENGTH_PREAMP)
+    # Create export directory
+    export_dir = "exports"
+    if not os.path.exists(export_dir):
+        os.makedirs(export_dir)
 
-# Add alignments
-preamp_base, preamp_lid = add_aligments(preamp_base, preamp_lid, WIDTH_PREAMP)
-# Add internal bosses for screws
-preamp_base, preamp_lid = add_internal_bosses(preamp_base, preamp_lid, WIDTH_PREAMP, LENGTH_PREAMP)
+    models = {
+        "phono-preamp-base": preamp_base,
+        "phono-preamp-lid": preamp_lid,
+        "power-supply-base": power_base,
+        "power-supply-lid": power_lid
+    }
 
-# Build and assemble PSU case
-psu_base = build_base(WIDTH_PSU, LENGTH_PSU)
-psu_base = add_bottom_mounts(psu_base, spacing_x=65.0, spacing_y=70.0)
-psu_base = add_psu_rear_connectors(psu_base)
+    for name, model in models.items():
+        if DO_STL_EXPORT:
+            # Export STL
+            stl_path = os.path.join(export_dir, f"{name}.stl")
+            cq.exporters.export(model, stl_path)
+            print(f"Exported {stl_path}")
 
-# Build PSU lid (top + side walls)
-psu_lid = build_lid(WIDTH_PSU, LENGTH_PSU)
-# Vents only in the lid side walls
-psu_vent_length = LENGTH_PSU - 20.0
-psu_vent_height = HEIGHT - 10.0
-psu_lid = psu_lid.faces("<X").workplane(centerOption="CenterOfMass")
-#psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
-psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK, WIDTH_PSU)
-psu_lid = psu_lid.faces(">X").workplane(centerOption="CenterOfMass")
-#psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
-psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, -LID_WALL_THICK, -WIDTH_PSU, angle=-45.0)
+        if DO_STEP_EXPORT:
+            # Export STEP
+            step_path = os.path.join(export_dir, f"{name}.step")
+            cq.exporters.export(model, step_path)
+            print(f"Exported {step_path}")
 
-# Add alignments
-psu_base, psu_lid = add_aligments(psu_base, psu_lid, WIDTH_PSU)
-# Add internal bosses for screws
-psu_base, psu_lid = add_internal_bosses(psu_base, psu_lid, WIDTH_PSU, LENGTH_PSU)
+if __name__ == "__main__":
+    # Build and assemble preamp case
+    preamp_base = build_base(WIDTH_PREAMP, LENGTH_PREAMP)
+    preamp_base = add_bottom_mounts(preamp_base, spacing_x=95.0, spacing_y=115.0)
+    preamp_base = add_preamp_rear_connectors(preamp_base)
 
-# Optional export
-if DO_EXPORT:
-    cq.exporters.export(preamp_base, "phono_preamp_base.stl")
-    cq.exporters.export(preamp_lid, "phono_preamp_lid.stl")
-    cq.exporters.export(psu_base, "power_supply_base.stl")
-    cq.exporters.export(psu_lid, "power_supply_lid.stl")
-    cq.exporters.export(preamp_base, "phono_preamp_base.step")
-    cq.exporters.export(preamp_lid, "phono_preamp_lid.step")
-    cq.exporters.export(psu_base, "power_supply_base.step")
-    cq.exporters.export(psu_lid, "power_supply_lid.step")
+    # Build preamp lid (top + side walls)
+    preamp_lid = build_lid(WIDTH_PREAMP, LENGTH_PREAMP)
 
-# Show in CQ-editor
-show_object(preamp_base, name="Preamp Base")
-show_object(preamp_lid, name="Preamp Lid")
-show_object(psu_base, name="PSU Base")
-show_object(psu_lid, name="PSU Lid")
+    # Add alignments
+    preamp_base, preamp_lid = add_aligments(preamp_base, preamp_lid, WIDTH_PREAMP)
+    # Add internal bosses for screws
+    preamp_base, preamp_lid = add_internal_bosses(preamp_base, preamp_lid, WIDTH_PREAMP, LENGTH_PREAMP)
+
+    print("Preamp case built")
+
+    # Build and assemble PSU case
+    psu_base = build_base(WIDTH_PSU, LENGTH_PSU)
+    psu_base = add_bottom_mounts(psu_base, spacing_x=65.0, spacing_y=70.0)
+    psu_base = add_psu_rear_connectors(psu_base)
+
+    # Build PSU lid (top + side walls)
+    psu_lid = build_lid(WIDTH_PSU, LENGTH_PSU)
+    # Vents only in the lid side walls
+    psu_vent_length = LENGTH_PSU - 20.0
+    psu_vent_height = HEIGHT - 10.0
+    psu_lid = psu_lid.faces("<X").workplane(centerOption="CenterOfMass")
+    #psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
+    psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK, WIDTH_PSU)
+    psu_lid = psu_lid.faces(">X").workplane(centerOption="CenterOfMass")
+    #psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
+    psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, -LID_WALL_THICK, -WIDTH_PSU, angle=-45.0)
+
+    # Add alignments
+    psu_base, psu_lid = add_aligments(psu_base, psu_lid, WIDTH_PSU)
+    # Add internal bosses for screws
+    psu_base, psu_lid = add_internal_bosses(psu_base, psu_lid, WIDTH_PSU, LENGTH_PSU)
+
+    print("PSU case built")
+
+    # Optional export
+    export_models(preamp_base, preamp_lid, psu_base, psu_lid)
+
+    # Show in CQ-editor
+    show_object(preamp_base, name="Preamp Base")
+    show_object(preamp_lid, name="Preamp Lid")
+    show_object(psu_base, name="PSU Base")
+    show_object(psu_lid, name="PSU Lid")
