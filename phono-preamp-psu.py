@@ -26,44 +26,66 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+################################################################################
 #
-# v0.0.2
+# v0.0.3
+# DIY phono-preamp and separate PSU cases.
+# In my setup the PSU unit is only a 15-0-15V transformer, becasue rectifier circuit is built into the phono-preamp.
+# For a better noise protection the phono-preamp case should be shielded from inside using an adhesive copper foil,
+# connected finally to the ground terminal.
 
+import cq_utils
 import cadquery as cq
 from cadquery import Workplane
-from ocp_vscode import show_object
-import os
 
 # Toggle exports (set True when you want STL/STEP files written)
-DO_STL_EXPORT = False
+DO_STL_EXPORT = True
 DO_STEP_EXPORT = False
 
 # Configuration (tweak if needed)
-WIDTH_PREAMP, LENGTH_PREAMP, HEIGHT = 120.0, 150.0, 50.0
-WIDTH_PSU, LENGTH_PSU = 100.0, 80.0
-BASE_WALL_THICK = 3.0       # generic wall thickness
-BASE_BOTTOM_THICK = 3.0     # bottom plate thickness
-LID_TOP_THICK = 3.0         # lid top plate thickness
-LID_WALL_THICK = BASE_WALL_THICK   # side wall thickness attached to lid
-SCREW_DIAMETER = 3.2
-SCREW_CSK_DIAMETER = 6.0
-SCREW_CSK_ANGLE = 120
-BRASS_CSK_DIAMETER = 6.0
-BRASS_CSK_ANGLE = 82
-CINCH_DIAMETER = 8.0  # diameter of cinch/RCA holes
-POWER_DIAMETER = 12.0 # diameter of power connector hole
-GND_DIAMETER = 8.0    # diameter of ground connector hole
-POWER_SOCKET_WIDTH = 48.0
-POWER_SOCKET_HEIGHT = 29.0
-BOSS_DIAMETER = 10.0
+PREAMP_WIDTH, PREAMP_LENGTH = 110.0, 160.0
+PSU_WIDTH, PSU_LENGTH = 110.0, 85.0
+HEIGHT = 50.0
 
-# Utility: add vents as rectangular slots on a vertical wall workplane
+BASE_WALL_THICK = 3.0              # Generic wall thickness
+BASE_BOTTOM_THICK = 3.0            # Bottom plate thickness
+LID_TOP_THICK = BASE_BOTTOM_THICK  # Lid top plate thickness
+LID_WALL_THICK = BASE_WALL_THICK   # Side wall thickness attached to lid
+
+PCB_SCREW_HOLE_DIAMETER = 3.2      # PCB screw should fit through
+PCB_SCREW_CBR_DIAMETER = 6.5       # PCB screw counterbore diameter
+PCB_SCREW_CBR_DEPTH = 2.5          # PCB screw counterbore depth
+PCB_STAGE_HEIGHT = 3.1             # Stage for PCB mounts
+PCB_STAGE_DIAMETER = PCB_SCREW_HOLE_DIAMETER * 1.5
+
+LID_SCREW_HOLE_DIAMETER = 3.2      # Lid mounting screw should fit through
+LID_SCREW_CBR_DIAMETER = 6.4       # Lid screw counterbore diameter
+LID_SCREW_CBR_DEPTH = 1.3          # Lid screw counterbore depth
+
+PREAMP_PCB_SPACING_X = 90.0   # Phono-preamp PCB mounting holes spacing in X direction
+PREAMP_PCB_SPACING_Y = 110.0  # Phono-preamp PCB mounting holes spacing in Y direction
+
+PSU_PCB_SPACING_X = 71.0   # PSU PCB mounting holes spacing in X direction
+PSU_PCB_SPACING_Y = 66.0   # PSU PCB mounting holes spacing in Y direction
+
+CINCH_DIAMETER = 8.2  # Diameter of cinch/RCA holes
+POWER_DIAMETER = 12.5 # Diameter of power connector hole
+GND_DIAMETER = 7.1    # Diameter of ground connector hole
+POWER_SOCKET_WIDTH = 47.0
+POWER_SOCKET_HEIGHT = 27.5
+
+NUT_HOLE_DIAMETER = 4.0                  # Eembeded nut outer diameter
+BOSS_DIAMETER = NUT_HOLE_DIAMETER * 2.0  # Attach-lid-to-base boss diameter
+
 def add_vertical_wall_vents(wall: Workplane,
                             area_length, area_height,
                             wall_thick,
                             spacing=6.0,
                             slot_w=3.0,
                             slot_h=None) -> Workplane:
+    """
+    Add vertical vents as rectangular slots on a vertical wall workplane
+    """
     if slot_h is None:
         slot_h = max(4.0, area_height - 4.0)
 
@@ -115,37 +137,55 @@ def add_diagonal_wall_vents(wall: Workplane,
     # subtract the slots
     return wall.cut(cuts)
 
-# Utility: add bottom mounting holes (for brass bosses) on bottom plate outer face
-def add_bottom_mounts(bottom_plate: Workplane,
-                      spacing_x, spacing_y,
-                      thru_dia=SCREW_DIAMETER,
-                      csk_dia=BRASS_CSK_DIAMETER,
-                      csk_angle=BRASS_CSK_ANGLE) -> Workplane:
+def add_pcb_mounts(bottom_plate: Workplane,
+                      spacing_x, spacing_y, offset_y,
+                      stage_height=PCB_STAGE_HEIGHT,
+                      stage_dia=PCB_STAGE_DIAMETER,
+                      bottom_thick=BASE_BOTTOM_THICK,
+                      thru_dia=PCB_SCREW_HOLE_DIAMETER,
+                      cbr_dia=PCB_SCREW_CBR_DIAMETER,
+                      cbr_depth=PCB_SCREW_CBR_DEPTH) -> Workplane:
+    """
+    Add PCB mounting holes in the bottom plate and extruded stages for PCB support
+    """
     hx = spacing_x / 2.0
     hy = spacing_y / 2.0
     pts = [(hx, hy), (-hx, hy), (hx, -hy), (-hx, -hy)]
-    return (bottom_plate
-            .faces("<Z")
-            .workplane(centerOption="CenterOfMass")
-            .pushPoints(pts)
-            .cskHole(diameter=thru_dia, cskDiameter=csk_dia, cskAngle=csk_angle))
+    stages = cq.Workplane("XY")
+    for (x, y) in pts:
+        stage = (cq
+                 .Workplane("XY")
+                 .transformed(offset=(x, y + offset_y, bottom_thick))
+                 .circle(stage_dia)
+                 .extrude(stage_height))
+        stages = stages.union(stage)
 
-# Utility: add internal bosses in base corners for lid screws
+    return (bottom_plate
+            .union(stages)
+            .faces("<Z")
+            .workplane(origin=(0, offset_y, 0))
+            .pushPoints(pts)
+            .cboreHole(diameter=thru_dia, cboreDiameter=cbr_dia, cboreDepth=cbr_depth))
+
 def add_internal_bosses(base: Workplane, lid: Workplane,
                         width, length,
                         height=HEIGHT,
-                        boss_dia=BOSS_DIAMETER,
-                        hole_dia=SCREW_DIAMETER,
-                        lid_wall_thick=LID_WALL_THICK,
-                        base_wall_thick=BASE_WALL_THICK,
                         bottom_thick=BASE_BOTTOM_THICK,
-                        csk_dia=SCREW_CSK_DIAMETER,
-                        csk_angle=SCREW_CSK_ANGLE) -> tuple[Workplane, Workplane]:
+                        base_wall_thick=BASE_WALL_THICK,
+                        lid_wall_thick=LID_WALL_THICK,
+                        thru_dia=LID_SCREW_HOLE_DIAMETER,
+                        boss_dia=BOSS_DIAMETER,
+                        nut_dia=NUT_HOLE_DIAMETER,
+                        cbr_dia=LID_SCREW_CBR_DIAMETER,
+                        cbr_depth=LID_SCREW_CBR_DEPTH) -> tuple[Workplane, Workplane]:
+    """
+    Add internal bosses in base corners for lid screws
+    """
     melt_depth = 1.0
     hx = width / 2.0 - lid_wall_thick - boss_dia / 2.0 + melt_depth
     hy = length / 2.0 - lid_wall_thick - boss_dia / 2.0
-    pts = [(hx, hy + melt_depth), (-hx, hy + melt_depth), (hx, -hy + base_wall_thick), (-hx, -hy + base_wall_thick)]
-    hole_height = 10.0
+    pts = [(hx, hy), (-hx, hy), (hx, -hy + base_wall_thick), (-hx, -hy + base_wall_thick)]
+    hole_height = 15.0
     for (x, y) in pts:
         # create a cylinder rising from inside bottom surface
         boss = (cq
@@ -155,46 +195,50 @@ def add_internal_bosses(base: Workplane, lid: Workplane,
                 .extrude(height - bottom_thick)
                 .faces("<Z")
                 .workplane(centerOption="CenterOfMass")
-                .hole(hole_dia, depth=hole_height)) # hole for screw into boss (from lid screw down)
+                .hole(nut_dia, depth=hole_height)) # hole for screw into boss
         lid = lid.union(boss)
 
         base = (base
                .faces("<Z")
-               .workplane(origin=(0, lid_wall_thick + melt_depth, 0))
+               .workplane(origin=(0, lid_wall_thick, 0))
                .pushPoints(pts)
-               .cskHole(diameter=hole_dia, cskDiameter=csk_dia, cskAngle=csk_angle))
+               .cboreHole(diameter=thru_dia, cboreDiameter=cbr_dia, cboreDepth=cbr_depth))
 
     return base, lid
 
-# Build base: bottom plate + front and rear walls attached
 def build_base(width, length,
                height=HEIGHT,
                bottom_thick=BASE_BOTTOM_THICK,
                top_thick=LID_TOP_THICK,
                base_wall_thick=BASE_WALL_THICK,
-               lid_wall_thick=LID_WALL_THICK) -> Workplane:
+               lid_wall_thick=LID_WALL_THICK) -> tuple[Workplane, Workplane]:
+    """
+    Build base: bottom plate + rear wall attached for a covenient mounting of rear connectors
+    """
     # bottom plate centered at origin, thickness bottom_thick
     bottom = (cq
               .Workplane("XY")
               .box(width, length, bottom_thick, centered=(True, True, False)))
 
-    rear_length = width - lid_wall_thick * 2.0
-    wall_height = height - bottom_thick - top_thick / 2.0
+    rear_length = width - lid_wall_thick
+    wall_height = height - bottom_thick - top_thick / 2.0 + bottom_thick / 2.0
 
     # rear wall
     rear = (cq
             .Workplane("XY")
-            .transformed(offset=(0, -length / 2.0 + base_wall_thick / 2.0 + base_wall_thick, bottom_thick))
+            .transformed(offset=(0, -length / 2.0 + base_wall_thick / 2.0 + lid_wall_thick, bottom_thick / 2.0))
             .box(rear_length, base_wall_thick, wall_height, centered=(True, True, False)))
 
-    return bottom.union(rear)
+    return bottom, rear
 
-# Build lid: top plate + side walls attached
 def build_lid(width, length,
               height=HEIGHT,
               top_thick=LID_TOP_THICK,
               bottom_thick=BASE_BOTTOM_THICK,
-              wall_thick=LID_WALL_THICK) -> Workplane:
+              wall_thick=LID_WALL_THICK) -> tuple[Workplane, Workplane, Workplane, Workplane]:
+    """
+    Build lid: top plate + 3 side walls (front, left, right)
+    """
     # top plate centered at origin but later positioned at top; we'll create centered and translate when assembling
     top = (cq
            .Workplane("XY")
@@ -222,19 +266,21 @@ def build_lid(width, length,
              .transformed(offset=(width / 2.0 - wall_thick / 2.0, 0, wall_z_offset))
              .box(wall_thick, length, wall_height, centered=(True, True, False)))
 
-    return top.union(front).union(left).union(right)
+    return top, front, left, right
 
 # Add aligments in the bottom and top plate
-def add_aligments(base: Workplane, lid: Workplane,
-                  bottom_thick=BASE_BOTTOM_THICK) -> tuple[Workplane, Workplane]:
-    base_cut, lid_cut = (base
-                         .intersect(lid)
-                         .faces("<Z")
-                         .workplane(-bottom_thick / 2.0)
-                         .split(keepTop=True, keepBottom=True)
-                         .all())
+def add_aligments_assemble(base_bottom: Workplane, base_rear: Workplane,
+                           lid_top: Workplane, lid_front: Workplane,
+                           lid_left: Workplane, lid_right: Workplane) -> tuple[Workplane, Workplane]:
+    base_bottom = (base_bottom
+                   .cut(lid_front)
+                   .cut(lid_left)
+                   .cut(lid_right))
+    lid_top = lid_top.cut(base_rear)
+    lid_left = lid_left.cut(base_rear)
+    lid_right = lid_right.cut(base_rear)
 
-    return base.cut(base_cut), lid.cut(lid_cut)
+    return base_bottom.union(base_rear), lid_top.union(lid_front).union(lid_left).union(lid_right)
 
 # Create rear wall cutouts for preamp
 def add_preamp_rear_connectors(base: Workplane,
@@ -242,116 +288,140 @@ def add_preamp_rear_connectors(base: Workplane,
                                cinch_dia=CINCH_DIAMETER,
                                power_dia=POWER_DIAMETER,
                                ground_dia=GND_DIAMETER,
-                               wall_thick=BASE_WALL_THICK) -> Workplane:
+                               base_wall_thick=BASE_WALL_THICK,
+                               lid_wall_thick=LID_WALL_THICK) -> Workplane:
     # Place input pair centered at X = -30, power at X = 0, output pair at X = +30 (approx)
     cinch_interval = 15.0
-    cinch_x_offset = 30.0
-    z_offset = height / 2.0 + ground_dia / 2.0
+    cinch_x_offset = cinch_interval + power_dia
+    z_offset = height / 2.0
     return (base
             .faces("<Y")
-            .workplane(offset=-wall_thick, centerOption="CenterOfMass")
+            .workplane(offset=-lid_wall_thick, centerOption="CenterOfMass")
             .pushPoints([(-cinch_interval / 2.0 - cinch_x_offset, z_offset), (cinch_interval / 2.0 - cinch_x_offset, z_offset)])
-            .hole(cinch_dia, depth=wall_thick)  # Input pair
-            .pushPoints([(0, -cinch_interval + z_offset)])
-            .hole(ground_dia, depth=wall_thick) # Ground terminal
-            .pushPoints([(0, z_offset)])
-            .hole(power_dia, depth=wall_thick)  # Power in (center)
+            .hole(cinch_dia, depth=base_wall_thick)  # Input pair
+            .pushPoints([(0, z_offset - ground_dia / 2.0 - cinch_dia)])
+            .hole(power_dia, depth=base_wall_thick)  # Power in (center)
+            .pushPoints([(0, z_offset + power_dia / 2.0)])
+            .hole(ground_dia, depth=base_wall_thick) # Ground terminal
             .pushPoints([(-cinch_interval / 2.0 + cinch_x_offset, z_offset), (cinch_interval / 2.0 + cinch_x_offset, z_offset)])
-            .hole(cinch_dia, depth=wall_thick)) # Output pair
+            .hole(cinch_dia, depth=base_wall_thick)) # Output pair
 
 # Create rear wall cutouts for PSU
 def add_psu_rear_connectors(base: Workplane,
-                            width_psu=WIDTH_PSU,
+                            width_psu=PSU_WIDTH,
                             height=HEIGHT,
                             power_dia=POWER_DIAMETER,
                             socket_width=POWER_SOCKET_WIDTH,
                             socket_height=POWER_SOCKET_HEIGHT,
-                            wall_thick=BASE_WALL_THICK) -> Workplane:
-    hole_x_offset = 10.0
+                            base_wall_thick=BASE_WALL_THICK,
+                            lid_wall_thick=LID_WALL_THICK) -> Workplane:
+    hole_x_offset = 15.0
     z_offset = height / 2.0
     return (base
             .faces("<Y")
-            .workplane(offset=-wall_thick, centerOption="CenterOfMass")
-            .moveTo(-width_psu/2.0 + socket_width/2.0 + hole_x_offset + wall_thick, z_offset)
+            .workplane(offset=-lid_wall_thick - base_wall_thick, centerOption="CenterOfMass")
+            .moveTo(-width_psu / 2.0 + socket_width / 2.0 + hole_x_offset + base_wall_thick, z_offset)
             .rect(socket_width, socket_height)
-            .cutBlind(until=-wall_thick)  # Power socket cutout
-            .pushPoints([(width_psu/2.0 - power_dia/2.0 - hole_x_offset - wall_thick, z_offset)])
-            .hole(power_dia, depth=wall_thick))  # Ground terminal hole below socket
+            .cutBlind(until=base_wall_thick)          # Power socket cutout
+            .moveTo(-width_psu / 2.0 + socket_width / 2.0 + hole_x_offset + base_wall_thick, z_offset)
+            .rect(socket_width, socket_height + 4.0)
+            .cutBlind(until=base_wall_thick-2.0)      # Power socket mounts
+            .transformed(offset=(0, 0, lid_wall_thick))
+            .pushPoints([(width_psu / 2.0 - power_dia / 2.0 - hole_x_offset - base_wall_thick, z_offset)])
+            .hole(power_dia, depth=base_wall_thick))  # Power out
 
-# Export functions
-def export_models(preamp_base: Workplane, preamp_lid: Workplane, power_base: Workplane, power_lid: Workplane):
-    """Export all models to STL and STEP formats"""
+# Create bottom and front cutouts for preamp
+def add_preamp_control_cutouts(base: Workplane, offset_y,
+                               bottom_thick=BASE_BOTTOM_THICK) -> Workplane:
+    # Dimensions of the switches' cutouts
+    mm_mc_x_len = 12.0
+    mm_mc_y_len = 8.0
+    cap_res_x_len = 16.0
+    cap_res_y_len = 12.0
+    # Offsets of the switches' centers from the center of PCB
+    cap_res_x_offset = 26.0
+    cap_res_y_offset = 49.0
+    mm_mc_x_offset = 30.5
+    mm_mc_y_offset = 11.0
 
-    # Create export directory
-    export_dir = "exports"
-    if not os.path.exists(export_dir):
-        os.makedirs(export_dir)
-
-    models = {
-        "phono-preamp-base": preamp_base,
-        "phono-preamp-lid": preamp_lid,
-        "power-supply-base": power_base,
-        "power-supply-lid": power_lid
-    }
-
-    for name, model in models.items():
-        if DO_STL_EXPORT:
-            # Export STL
-            stl_path = os.path.join(export_dir, f"{name}.stl")
-            cq.exporters.export(model, stl_path)
-            print(f"Exported {stl_path}")
-
-        if DO_STEP_EXPORT:
-            # Export STEP
-            step_path = os.path.join(export_dir, f"{name}.step")
-            cq.exporters.export(model, step_path)
-            print(f"Exported {step_path}")
+    return (base
+            .faces("<Z")
+            .workplane(origin=(0, offset_y, 0))  # Place the origin right in the center of PCB
+            .pushPoints([(mm_mc_x_offset, mm_mc_y_offset), (-mm_mc_x_offset, mm_mc_y_offset)])
+            .rect(mm_mc_x_len, mm_mc_y_len)
+            .cutBlind(until=-bottom_thick)    # Right+left channel MM/MC switch
+            .pushPoints([(cap_res_x_offset, -cap_res_y_offset), (-cap_res_x_offset, -cap_res_y_offset)])
+            .rect(cap_res_x_len, cap_res_y_len)
+            .cutBlind(until=-bottom_thick))   # Right+left channel capacity/resistance switch
 
 if __name__ == "__main__":
-    # Build and assemble preamp case
-    preamp_base = build_base(WIDTH_PREAMP, LENGTH_PREAMP)
-    preamp_base = add_bottom_mounts(preamp_base, spacing_x=95.0, spacing_y=115.0)
-    preamp_base = add_preamp_rear_connectors(preamp_base)
-
+    # Build preamp base (bottom + rear wall)
+    preamp_bottom, preamp_rear = build_base(PREAMP_WIDTH, PREAMP_LENGTH)
+    # Add PCB mounting stages and holes
+    # Move PCB cloeser to the front wall to make room for rear connectors
+    preamp_pcb_offset_y = (PREAMP_LENGTH - PREAMP_PCB_SPACING_Y) / 2.0 - LID_WALL_THICK - BOSS_DIAMETER - PCB_STAGE_DIAMETER - 3.0
+    preamp_bottom = add_pcb_mounts(preamp_bottom, PREAMP_PCB_SPACING_X, PREAMP_PCB_SPACING_Y, preamp_pcb_offset_y)
     # Build preamp lid (top + side walls)
-    preamp_lid = build_lid(WIDTH_PREAMP, LENGTH_PREAMP)
-
+    preamp_top, preamp_front, preamp_left, preamp_right = build_lid(PREAMP_WIDTH, PREAMP_LENGTH)
     # Make sure lid fits over base
-    preamp_base, preamp_lid = add_aligments(preamp_base, preamp_lid)
+    preamp_base, preamp_lid = add_aligments_assemble(preamp_bottom, preamp_rear, preamp_top, preamp_front, preamp_left, preamp_right)
+
+    # Add connector cutouts
+    preamp_base = add_preamp_rear_connectors(preamp_base)
+    # Add bottom cutouts for controls
+    preamp_base = add_preamp_control_cutouts(preamp_base, preamp_pcb_offset_y)
+    # Add hole for LED indicator on front wall
+    led_diameter = 3.2
+    preamp_lid = (preamp_lid
+                   .faces(">Y")
+                   .workplane(centerOption="CenterOfMass")
+                   .pushPoints([(0, 0)])
+                   .hole(led_diameter, LID_WALL_THICK))
     # Add internal bosses for screws
-    preamp_base, preamp_lid = add_internal_bosses(preamp_base, preamp_lid, WIDTH_PREAMP, LENGTH_PREAMP)
+    preamp_base, preamp_lid = add_internal_bosses(preamp_base, preamp_lid, PREAMP_WIDTH, PREAMP_LENGTH)
+
+    # Don't cut vents thru, only emboss pattern in the lid side walls
+    preamp_vent_length = PREAMP_LENGTH - BOSS_DIAMETER * 2.0 - BASE_WALL_THICK - LID_WALL_THICK * 2.0
+    preamp_vent_height = HEIGHT - 10.0
+    preamp_lid = preamp_lid.faces("<X").workplane(centerOption="CenterOfMass")
+    #preamp_lid = add_vertical_wall_vents(preamp_lid, preamp_vent_length, preamp_vent_height, LID_WALL_THICK / 2.0)
+    preamp_lid = add_diagonal_wall_vents(preamp_lid, preamp_vent_length, preamp_vent_height, LID_WALL_THICK / 4.0, PREAMP_WIDTH)
+    preamp_lid = preamp_lid.faces(">X").workplane(centerOption="CenterOfMass")
+    #preamp_lid = add_vertical_wall_vents(preamp_lid, preamp_vent_length, preamp_vent_height, LID_WALL_THICK / 2.0)
+    preamp_lid = add_diagonal_wall_vents(preamp_lid, preamp_vent_length, preamp_vent_height, -LID_WALL_THICK / 4.0, -PREAMP_WIDTH, angle=-45.0)
 
     print("Preamp case built")
 
-    # Build and assemble PSU case
-    psu_base = build_base(WIDTH_PSU, LENGTH_PSU)
-    psu_base = add_bottom_mounts(psu_base, spacing_x=70.0, spacing_y=65.0)
-    psu_base = add_psu_rear_connectors(psu_base)
-
+    # Build PSU base (bottom + rear wall)
+    psu_bottom, psu_rear = build_base(PSU_WIDTH, PSU_LENGTH)
+    # Add PCB mounting stages and holes
+    psu_bottom = add_pcb_mounts(psu_bottom, PSU_PCB_SPACING_X, PSU_PCB_SPACING_Y, BASE_WALL_THICK / 2.0)
     # Build PSU lid (top + side walls)
-    psu_lid = build_lid(WIDTH_PSU, LENGTH_PSU)
+    psu_top, psu_front, psu_left, psu_right = build_lid(PSU_WIDTH, PSU_LENGTH)
+    # Make sure lid fits over base
+    psu_base, psu_lid = add_aligments_assemble(psu_bottom, psu_rear, psu_top, psu_front, psu_left, psu_right)
+
+    # Add connector cutouts
+    psu_base = add_psu_rear_connectors(psu_base)
+    # Add internal bosses for screws
+    psu_base, psu_lid = add_internal_bosses(psu_base, psu_lid, PSU_WIDTH, PSU_LENGTH)
+
     # Vents only in the lid side walls
-    psu_vent_length = LENGTH_PSU - 20.0
+    psu_vent_length = PSU_LENGTH - BOSS_DIAMETER * 2.0 - BASE_WALL_THICK - LID_WALL_THICK * 2.0
     psu_vent_height = HEIGHT - 10.0
     psu_lid = psu_lid.faces("<X").workplane(centerOption="CenterOfMass")
     #psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
-    psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK, WIDTH_PSU)
+    psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK, PSU_WIDTH)
     psu_lid = psu_lid.faces(">X").workplane(centerOption="CenterOfMass")
     #psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
-    psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, -LID_WALL_THICK, -WIDTH_PSU, angle=-45.0)
-
-    # Make sure lid fits over base
-    psu_base, psu_lid = add_aligments(psu_base, psu_lid)
-    # Add internal bosses for screws
-    psu_base, psu_lid = add_internal_bosses(psu_base, psu_lid, WIDTH_PSU, LENGTH_PSU)
+    psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, -LID_WALL_THICK, -PSU_WIDTH, angle=-45.0)
 
     print("PSU case built")
 
-    # Optional export
-    export_models(preamp_base, preamp_lid, psu_base, psu_lid)
+    all_models = { "preamp_base": preamp_base, "preamp_lid": preamp_lid, "psu_base": psu_base, "psu_lid": psu_lid }
 
-    # Show in CQ-editor
-    show_object(preamp_base, name="Preamp Base")
-    show_object(preamp_lid, name="Preamp Lid")
-    show_object(psu_base, name="PSU Base")
-    show_object(psu_lid, name="PSU Lid")
+    # Optional export
+    cq_utils.export_models(DO_STL_EXPORT, DO_STEP_EXPORT, **all_models)
+
+    # Show in OCP Viewer
+    cq_utils.show_models(**all_models)
