@@ -28,11 +28,24 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.3
+# v0.0.4
 # DIY phono-preamp and separate PSU cases.
 # In my setup the PSU unit is only a 15-0-15V transformer, becasue rectifier circuit is built into the phono-preamp.
-# For a better noise protection the phono-preamp case should be shielded from inside using an adhesive copper foil,
+# For a better noise protection, the phono-preamp case should be shielded from inside using an adhesive copper foil,
 # connected finally to the ground terminal.
+# BOM:
+# - 8x M3x8 screws + melt insert nuts for lid attachment to base
+# - 8x M3 screws + nuts + PCB spacers for PCB mounting
+# - 8x self-adhesive rubber feet
+# - 4x cinch/RCA panel mount connectors
+# - 2x 3-pole power panel mount connectors
+# - 1x panel mount ground terminal
+# - 1x AC power panel mount socket with fuse and switch
+# - 1x power cord with plug
+# - 1x MOFI-T-Phonum 2 MM/MC DIY phono-preamp kit
+# - 1x suitable 15-0-15V 15VA PCB mounting transformer (e.g. Talema 70053K/72453K)
+# - 1x PCB for the transformer
+# - wires, cables, etc.
 
 import cq_utils
 import cadquery as cq
@@ -44,7 +57,7 @@ DO_STEP_EXPORT = False
 
 # Configuration (tweak if needed)
 PREAMP_WIDTH, PREAMP_LENGTH = 110.0, 160.0
-PSU_WIDTH, PSU_LENGTH = 110.0, 85.0
+PSU_WIDTH, PSU_LENGTH = 90.0, 135.0
 HEIGHT = 50.0
 
 BASE_WALL_THICK = 3.0              # Generic wall thickness
@@ -65,8 +78,8 @@ LID_SCREW_CBR_DEPTH = 1.3          # Lid screw counterbore depth
 PREAMP_PCB_SPACING_X = 90.0   # Phono-preamp PCB mounting holes spacing in X direction
 PREAMP_PCB_SPACING_Y = 110.0  # Phono-preamp PCB mounting holes spacing in Y direction
 
-PSU_PCB_SPACING_X = 71.0   # PSU PCB mounting holes spacing in X direction
-PSU_PCB_SPACING_Y = 66.0   # PSU PCB mounting holes spacing in Y direction
+PSU_PCB_SPACING_X = 66.0   # PSU PCB mounting holes spacing in X direction
+PSU_PCB_SPACING_Y = 71.0   # PSU PCB mounting holes spacing in Y direction
 
 CINCH_DIAMETER = 8.2  # Diameter of cinch/RCA holes
 POWER_DIAMETER = 12.5 # Diameter of power connector hole
@@ -77,11 +90,14 @@ POWER_SOCKET_HEIGHT = 27.5
 NUT_HOLE_DIAMETER = 4.0                  # Eembeded nut outer diameter
 BOSS_DIAMETER = NUT_HOLE_DIAMETER * 2.0  # Attach-lid-to-base boss diameter
 
+VENT_SPACING = 10.0    # Spacing between vents
+VENT_SLOT_WIDTH = 3.0  # Width of each vent slot
+
 def add_vertical_wall_vents(wall: Workplane,
                             area_length, area_height,
                             wall_thick,
-                            spacing=6.0,
-                            slot_w=3.0,
+                            spacing=VENT_SPACING,
+                            slot_w=VENT_SLOT_WIDTH,
                             slot_h=None) -> Workplane:
     """
     Add vertical vents as rectangular slots on a vertical wall workplane
@@ -105,8 +121,8 @@ def add_diagonal_wall_vents(wall: Workplane,
                             wall_thick, width,
                             height=HEIGHT,
                             base_thick=BASE_BOTTOM_THICK,
-                            spacing=6.0,
-                            slot_w=3.0,
+                            spacing=VENT_SPACING,
+                            slot_w=VENT_SLOT_WIDTH,
                             slot_h=None,
                             angle=45.0) -> Workplane:
     """
@@ -138,13 +154,13 @@ def add_diagonal_wall_vents(wall: Workplane,
     return wall.cut(cuts)
 
 def add_pcb_mounts(bottom_plate: Workplane,
-                      spacing_x, spacing_y, offset_y,
-                      stage_height=PCB_STAGE_HEIGHT,
-                      stage_dia=PCB_STAGE_DIAMETER,
-                      bottom_thick=BASE_BOTTOM_THICK,
-                      thru_dia=PCB_SCREW_HOLE_DIAMETER,
-                      cbr_dia=PCB_SCREW_CBR_DIAMETER,
-                      cbr_depth=PCB_SCREW_CBR_DEPTH) -> Workplane:
+                   spacing_x, spacing_y, offset_y,
+                   stage_height=PCB_STAGE_HEIGHT,
+                   stage_dia=PCB_STAGE_DIAMETER,
+                   bottom_thick=BASE_BOTTOM_THICK,
+                   thru_dia=PCB_SCREW_HOLE_DIAMETER,
+                   cbr_dia=PCB_SCREW_CBR_DIAMETER,
+                   cbr_depth=PCB_SCREW_CBR_DEPTH) -> Workplane:
     """
     Add PCB mounting holes in the bottom plate and extruded stages for PCB support
     """
@@ -285,6 +301,7 @@ def add_aligments_assemble(base_bottom: Workplane, base_rear: Workplane,
 # Create rear wall cutouts for preamp
 def add_preamp_rear_connectors(base: Workplane,
                                height=HEIGHT,
+                               preamp_length=PREAMP_LENGTH,
                                cinch_dia=CINCH_DIAMETER,
                                power_dia=POWER_DIAMETER,
                                ground_dia=GND_DIAMETER,
@@ -294,17 +311,32 @@ def add_preamp_rear_connectors(base: Workplane,
     cinch_interval = 15.0
     cinch_x_offset = cinch_interval + power_dia
     z_offset = height / 2.0
-    return (base
+    input_1_x_offset = -cinch_interval / 2.0 - cinch_x_offset
+    output_1_x_offset = -cinch_interval / 2.0 + cinch_x_offset
+    base = (base
             .faces("<Y")
             .workplane(offset=-lid_wall_thick, centerOption="CenterOfMass")
-            .pushPoints([(-cinch_interval / 2.0 - cinch_x_offset, z_offset), (cinch_interval / 2.0 - cinch_x_offset, z_offset)])
+            .pushPoints([(input_1_x_offset, z_offset), (cinch_interval / 2.0 - cinch_x_offset, z_offset)])
             .hole(cinch_dia, depth=base_wall_thick)  # Input pair
             .pushPoints([(0, z_offset - ground_dia / 2.0 - cinch_dia)])
             .hole(power_dia, depth=base_wall_thick)  # Power in (center)
             .pushPoints([(0, z_offset + power_dia / 2.0)])
             .hole(ground_dia, depth=base_wall_thick) # Ground terminal
-            .pushPoints([(-cinch_interval / 2.0 + cinch_x_offset, z_offset), (cinch_interval / 2.0 + cinch_x_offset, z_offset)])
+            .pushPoints([(output_1_x_offset, z_offset), (cinch_interval / 2.0 + cinch_x_offset, z_offset)])
             .hole(cinch_dia, depth=base_wall_thick)) # Output pair
+    text_depth = 0.5
+    font_size = 4.0
+    text_y_offset = -(preamp_length / 2.0 - lid_wall_thick)
+    text_input = (cq
+                  .Workplane("XZ")
+                  .text("Input", font_size, text_depth)
+                  .translate((input_1_x_offset + cinch_dia, text_y_offset, z_offset + cinch_dia * 1.3)))
+    text_output = (cq
+                   .Workplane("XZ")
+                   .text("Output", font_size, text_depth)
+                   .translate((output_1_x_offset + cinch_dia, text_y_offset, z_offset + cinch_dia * 1.3)))
+    return base.union(text_input).union(text_output)
+
 
 # Create rear wall cutouts for PSU
 def add_psu_rear_connectors(base: Workplane,
@@ -315,7 +347,7 @@ def add_psu_rear_connectors(base: Workplane,
                             socket_height=POWER_SOCKET_HEIGHT,
                             base_wall_thick=BASE_WALL_THICK,
                             lid_wall_thick=LID_WALL_THICK) -> Workplane:
-    hole_x_offset = 15.0
+    hole_x_offset = 9.0
     z_offset = height / 2.0
     return (base
             .faces("<Y")
@@ -382,7 +414,7 @@ if __name__ == "__main__":
 
     # Don't cut vents thru, only emboss pattern in the lid side walls
     preamp_vent_length = PREAMP_LENGTH - BOSS_DIAMETER * 2.0 - BASE_WALL_THICK - LID_WALL_THICK * 2.0
-    preamp_vent_height = HEIGHT - 10.0
+    preamp_vent_height = HEIGHT * 0.6
     preamp_lid = preamp_lid.faces("<X").workplane(centerOption="CenterOfMass")
     #preamp_lid = add_vertical_wall_vents(preamp_lid, preamp_vent_length, preamp_vent_height, LID_WALL_THICK / 2.0)
     preamp_lid = add_diagonal_wall_vents(preamp_lid, preamp_vent_length, preamp_vent_height, LID_WALL_THICK / 4.0, PREAMP_WIDTH)
@@ -395,7 +427,7 @@ if __name__ == "__main__":
     # Build PSU base (bottom + rear wall)
     psu_bottom, psu_rear = build_base(PSU_WIDTH, PSU_LENGTH)
     # Add PCB mounting stages and holes
-    psu_bottom = add_pcb_mounts(psu_bottom, PSU_PCB_SPACING_X, PSU_PCB_SPACING_Y, BASE_WALL_THICK / 2.0)
+    psu_bottom = add_pcb_mounts(psu_bottom, PSU_PCB_SPACING_X, PSU_PCB_SPACING_Y, (PSU_LENGTH - PSU_PCB_SPACING_Y) / 4.0 - BASE_WALL_THICK / 2.0)
     # Build PSU lid (top + side walls)
     psu_top, psu_front, psu_left, psu_right = build_lid(PSU_WIDTH, PSU_LENGTH)
     # Make sure lid fits over base
@@ -408,7 +440,7 @@ if __name__ == "__main__":
 
     # Vents only in the lid side walls
     psu_vent_length = PSU_LENGTH - BOSS_DIAMETER * 2.0 - BASE_WALL_THICK - LID_WALL_THICK * 2.0
-    psu_vent_height = HEIGHT - 10.0
+    psu_vent_height = HEIGHT * 0.6
     psu_lid = psu_lid.faces("<X").workplane(centerOption="CenterOfMass")
     #psu_lid = add_vertical_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK)
     psu_lid = add_diagonal_wall_vents(psu_lid, psu_vent_length, psu_vent_height, LID_WALL_THICK, PSU_WIDTH)
