@@ -32,10 +32,24 @@
 # v0.0.1
 # Honeycomb infill pattern generator
 
+import math
+from typing import Optional
+
 import cadquery as cq
 from cadquery import Workplane
-import math
 
+
+_AXIS_TO_PLANE = {
+    "X": "YZ",
+    "Y": "XZ",
+    "Z": "XY",
+}
+
+_PLANE_AXES = {
+    "XY": ("X", "Y"),
+    "YZ": ("Y", "Z"),
+    "XZ": ("X", "Z"),
+}
 
 def _hex_centers(width, height, cell_size):
     """
@@ -60,48 +74,99 @@ def _hex_centers(width, height, cell_size):
         x += x_step
         col += 1
 
-def _hex_ring(center, cell_size, edge_width, thickness):
-    """
-    Return a 3D hex 'ring' solid centered at (x,y)
-    """
-    x, y = center
-    wp = cq.Workplane("XY").center(x, y)
-    outer = wp.polygon(6, 2 * cell_size).extrude(thickness)
-    inner_r = max(cell_size - edge_width / 2.0, 0)
-    if inner_r > 0:
-        inner = cq.Workplane("XY").center(x, y).polygon(6, 2 * inner_r).extrude(thickness)
-        ring = outer.cut(inner)
-    else:
-        ring = outer
-    return ring
-
-def _honeycomb_grid(width, height, cell_size, edge_width, thickness):
+def _honeycomb_grid(width, height, cell_size, edge_width, thickness, plane):
     """
     Union of all hex rings covering a bounding box
     """
-    result = cq.Workplane("XY")
-    for c in _hex_centers(width, height, cell_size):
-        result = result.union(_hex_ring(c, cell_size, edge_width, thickness))
-    return result
+    centers = list(_hex_centers(width, height, cell_size))
+    if not centers:
+        return cq.Workplane(plane)
 
-def apply_honeycomb(wall: Workplane, cell_size, edge_width, shell_thickness, normal_axis='Z') -> Workplane:
+    outer = (
+        cq.Workplane(plane)
+        .pushPoints(centers)
+        .polygon(6, 2 * cell_size)
+        .extrude(thickness, combine=True)
+        .combineSolids()
+    )
+
+    inner_r = max(cell_size - edge_width / 2.0, 0)
+    if inner_r > 0:
+        inner = (
+            cq.Workplane(plane)
+            .pushPoints(centers)
+            .polygon(6, 2 * inner_r)
+            .extrude(thickness, combine=True)
+            .combineSolids()
+        )
+        return outer.cut(inner)
+
+    return outer
+
+def _resolve_orientation(solid, normal_axis: Optional[str]):
+    """
+    Determine which principal axis should be treated as the normal and map the
+    corresponding honeycomb plane, dimensions and translation.
+    """
+    bb = solid.BoundingBox()  # pyright: ignore[reportAttributeAccessIssue]
+    lengths = { "X": bb.xlen, "Y": bb.ylen, "Z": bb.zlen }
+    centers = {
+        "X": (bb.xmin + bb.xmax) / 2.0,
+        "Y": (bb.ymin + bb.ymax) / 2.0,
+        "Z": (bb.zmin + bb.zmax) / 2.0,
+    }
+    minima = { "X": bb.xmin, "Y": bb.ymin, "Z": bb.zmin }
+
+    if normal_axis is None:
+        normal_axis = min(lengths, key=lengths.get) # pyright: ignore[reportArgumentType, reportCallIssue]
+    else:
+        normal_axis = normal_axis.upper()
+        if normal_axis not in _AXIS_TO_PLANE:
+            raise ValueError(f"normal_axis must be one of X, Y, Z (got {normal_axis!r})")
+
+    plane = _AXIS_TO_PLANE[normal_axis] # pyright: ignore[reportArgumentType]
+    axis_u, axis_v = _PLANE_AXES[plane]
+
+    translation = { "X": 0.0, "Y": 0.0, "Z": 0.0 }
+    translation[axis_u] = centers[axis_u]
+    translation[axis_v] = centers[axis_v]
+    translation[normal_axis] = minima[normal_axis] # pyright: ignore[reportArgumentType]
+
+    return {
+        "plane": plane,
+        "width": lengths[axis_u],
+        "height": lengths[axis_v],
+        "thickness": lengths[normal_axis], # pyright: ignore[reportArgumentType]
+        "translation": (translation["X"], translation["Y"], translation["Z"]),
+        "normal_axis": normal_axis,
+    }
+
+def apply_honeycomb(
+        wall: Workplane,
+        cell_size,
+        edge_width,
+        shell_thickness,
+        normal_axis: Optional[str] = None) -> Workplane:
     """
     Apply a honeycomb infill to any polygonal wall solid
     """
     solid = wall.val()
-    bb = solid.BoundingBox() # pyright: ignore[reportAttributeAccessIssue]
-    width, height, thickness = bb.xlen, bb.ylen, bb.zlen
+    orientation = _resolve_orientation(solid, normal_axis)
 
-    # Determine the wall's base plane (assume built on XY)
-    base_z = bb.zmin
-    cx, cy = (bb.xmin + bb.xmax) / 2, (bb.ymin + bb.ymax) / 2
+    # Create the outer shell following the resolved normal axis
+    selector = f"+{orientation['normal_axis']} or -{orientation['normal_axis']}"
+    shell_only = wall.faces(selector).shell(-shell_thickness, kind='intersection')
 
-    # Create the outer shell
-    shell_only = wall.faces(f"+{normal_axis} or -{normal_axis}").shell(shell_thickness, kind='intersection')
-
-    # Build honeycomb grid aligned to wall center
-    pattern = _honeycomb_grid(width, height, cell_size, edge_width, thickness)
-    pattern = pattern.translate((cx, cy, base_z))
+    # Build honeycomb grid aligned to wall orientation
+    pattern = _honeycomb_grid(
+        orientation["width"],
+        orientation["height"],
+        cell_size,
+        edge_width,
+        orientation["thickness"],
+        orientation["plane"],
+    )
+    pattern = pattern.translate(orientation["translation"])
 
     # Intersect pattern with the fill region and wall
     infill = wall.intersect(pattern)
