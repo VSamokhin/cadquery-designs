@@ -41,8 +41,8 @@ DO_STL_EXPORT = True
 DO_STEP_EXPORT = False
 
 # Configuration (tweak if needed)
-NUM_STEPS = 5
-FIRST_STEP_HEIGHT = 15.0
+NUM_STEPS = 3
+FIRST_STEP_HEIGHT = 15.0 # special first step height (set <0 to disable)
 STEP_HEIGHT = 75.0
 STEP_WIDTH = 150.0
 STEP_DEPTH = 90.0
@@ -99,7 +99,7 @@ def generate_base(right_side: Workplane, step_width, wall_thickness) -> Workplan
     return right_side.union(left_side)
 
 def assembly_stand(
-        num_steps=NUM_STEPS,
+        num_steps: int=NUM_STEPS,
         first_step_height=FIRST_STEP_HEIGHT,
         step_height=STEP_HEIGHT,
         step_width=STEP_WIDTH,
@@ -108,12 +108,14 @@ def assembly_stand(
     """
     Generate a simple assembly stand with multiple steps
     """
+    assert num_steps > 0, "Number of steps must greater than zero"
     z_offset = -(num_steps - 1) * step_height / 2.0
     y_offset = num_steps * step_depth / 2.0
     all_steps = cq.Workplane("XY")
     right_wall = cq.Workplane("YZ")
-    # A bit of overhead for the special first step, but I like the idea
+    # A bit of overhead for the special first step, but I like the idea of such a step
     if first_step_height >= 0.0:
+        assert num_steps > 1, "With the first step enabled, number of steps must be greater than one"
         z_offset -= first_step_height / 2.0
         y_offset -= step_depth / 2.0
         step, _ = generate_step(first_step_height, step_width, step_depth, wall_thickness)
@@ -133,10 +135,6 @@ def assembly_stand(
 
 if __name__ == "__main__":
     steps, base = assembly_stand()
-
-    # Apply honeycomb infill
-    #normal_axis = cq_utils.determine_normal_axis(wall)
-    #honeycomb_wall = honeycomb.apply_honeycomb(wall, CELL_SIZE, EDGE_WIDTH, SHELL_THICKNESS, normal_axis=normal_axis)
 
     all_models = { "steps": steps, "base": base }
 
