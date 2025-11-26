@@ -86,7 +86,7 @@ def _honeycomb_grid(width, height, cell_size, edge_width, thickness, plane):
         cq.Workplane(plane)
         .pushPoints(centers)
         .polygon(6, 2 * cell_size)
-        .extrude(thickness, combine=True)
+        .extrude(thickness / 2.0, both=True, combine=True)
         .combineSolids()
     )
 
@@ -96,7 +96,7 @@ def _honeycomb_grid(width, height, cell_size, edge_width, thickness, plane):
             cq.Workplane(plane)
             .pushPoints(centers)
             .polygon(6, 2 * inner_r)
-            .extrude(thickness, combine=True)
+            .extrude(thickness / 2.0, both=True, combine=True)
             .combineSolids()
         )
         return outer.cut(inner)
@@ -130,7 +130,7 @@ def _resolve_orientation(solid, normal_axis: Optional[str]):
     translation = { "X": 0.0, "Y": 0.0, "Z": 0.0 }
     translation[axis_u] = centers[axis_u]
     translation[axis_v] = centers[axis_v]
-    translation[normal_axis] = minima[normal_axis] # pyright: ignore[reportArgumentType]
+    translation[normal_axis] = centers[normal_axis] # pyright: ignore[reportArgumentType]
 
     return {
         "plane": plane,
