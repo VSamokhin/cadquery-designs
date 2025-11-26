@@ -58,21 +58,21 @@ def _hex_centers(width, height, cell_size):
     hex_height = math.sqrt(3) * cell_size
     x_step = 1.5 * cell_size
     y_step = hex_height
-    xmin = -width / 2 - cell_size
-    xmax = width / 2 + cell_size
-    ymin = -height / 2 - cell_size
-    ymax = height / 2 + cell_size
+    span_x = width + 2 * cell_size
+    span_y = height + 2 * cell_size
 
-    x = xmin
-    col = 0
-    while x <= xmax:
-        y_offset = (hex_height / 2) if (col % 2 == 1) else 0.0
-        y = ymin + y_offset
-        while y <= ymax:
-            yield (x, y)
-            y += y_step
-        x += x_step
-        col += 1
+    # center the lattice on origin so the pattern looks symmetric on all faces
+    n_cols = max(1, int(math.ceil(span_x / x_step)) + 1)
+    n_rows = max(1, int(math.ceil(span_y / y_step)) + 1)
+
+    x0 = - (n_cols - 1) * x_step / 2.0
+    y0_base = - (n_rows - 1) * y_step / 2.0
+
+    for col in range(n_cols):
+        y_offset = (hex_height / 2.0) if (col % 2 == 1) else 0.0
+        y0 = y0_base + y_offset
+        for row in range(n_rows):
+            yield (x0 + col * x_step, y0 + row * y_step)
 
 def _honeycomb_grid(width, height, cell_size, edge_width, thickness, plane):
     """
