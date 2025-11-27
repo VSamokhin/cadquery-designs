@@ -29,6 +29,7 @@
 ################################################################################
 #
 # v0.0.2
+# Parametrized step display stand generator
 
 import cq_utils
 import honeycomb
@@ -42,12 +43,12 @@ DO_STL_EXPORT = True
 DO_STEP_EXPORT = False
 
 # Configuration (tweak if needed)
-NUM_STEPS = 3
-FIRST_STEP_HEIGHT = 0.0            # special first step height (set <=0 to disable or at least to the same value as wall thickness)
-STEP_HEIGHT = 70.0
+NUM_STEPS = 5
+FIRST_STEP_HEIGHT = 3.5            # special first step height (set <=0 to disable or at least to the same value as wall thickness)
+STEP_HEIGHT = 45.0
 STEP_WIDTH = 160.0
-STEP_DEPTH = 80.0
-LEDGE_HEIGHT = 0.0                 # height of the front ledge (set <=0 to disable)
+STEP_DEPTH = 45.0
+LEDGE_HEIGHT = 20.0                 # height of the front ledge (set <=0 to disable)
 WALL_THICKNESS = 3.5               # thickness of all walls
 CELL_SIZE = 20.0                   # hex side length
 EDGE_WIDTH = WALL_THICKNESS * 2.0  # thickness of honeycomb walls
@@ -180,7 +181,7 @@ def assembly_stand(
     z_offset = -(num_steps - 1) * step_height / 2.0
     y_offset = num_steps * step_depth / 2.0
     first_step_offset = 0.0
-    min_wall_size = shell_thickness * 2 + edge_width * 2 + cell_size
+    min_wall_size = shell_thickness * 2 + cell_size
     all_steps = cq.Workplane("XY")
     # A bit of overhead for the special first step, but I like the idea of such a step
     if first_step_height > 0.0:
@@ -241,7 +242,7 @@ def assembly_stand(
 if __name__ == "__main__":
     steps = assembly_stand()
 
-    all_models = { f'steps-{NUM_STEPS}{"-with_first_step" if FIRST_STEP_HEIGHT > 0.0 else ""}{"-with_ledges" if LEDGE_HEIGHT > 0.0 else ""}': steps }
+    all_models = { f'steps-{NUM_STEPS}-w_{STEP_WIDTH}-h_{STEP_HEIGHT}-d_{STEP_DEPTH}-first_step_{FIRST_STEP_HEIGHT}-ledge_{LEDGE_HEIGHT}': steps }
 
     # Optional export
     cq_utils.export_models(DO_STL_EXPORT, DO_STEP_EXPORT, **all_models)
