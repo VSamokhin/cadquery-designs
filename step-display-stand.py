@@ -28,12 +28,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.1
+# v0.0.2
 
 import cq_utils
 import honeycomb
 import cadquery as cq
 from cadquery import Workplane
+from typing import Optional
 
 
 # Toggle exports (set True when you want STL/STEP files written)
@@ -41,12 +42,12 @@ DO_STL_EXPORT = True
 DO_STEP_EXPORT = False
 
 # Configuration (tweak if needed)
-NUM_STEPS = 5
-FIRST_STEP_HEIGHT = 15.0           # special first step height (set <0 to disable)
-STEP_HEIGHT = 75.0
-STEP_WIDTH = 150.0
-STEP_DEPTH = 90.0
-SIDE_HEIGHT = 0.0                 # height of side walls
+NUM_STEPS = 3
+FIRST_STEP_HEIGHT = 0.0            # special first step height (set <=0 to disable or at least to the same value as wall thickness)
+STEP_HEIGHT = 70.0
+STEP_WIDTH = 160.0
+STEP_DEPTH = 80.0
+LEDGE_HEIGHT = 0.0                 # height of the front ledge (set <=0 to disable)
 WALL_THICKNESS = 3.5               # thickness of all walls
 CELL_SIZE = 20.0                   # hex side length
 EDGE_WIDTH = WALL_THICKNESS * 2.0  # thickness of honeycomb walls
@@ -57,7 +58,7 @@ def generate_step(
         step_depth, wall_thickness,
         side_height,
         front_z_offset=0.0,
-        support_height=0.0) -> tuple[Workplane, Workplane, Workplane]:
+        support_extra_height=0.0) -> tuple[Workplane, Optional[Workplane], Workplane, Workplane]:
     """
     Generate a single step with given height and width
     """
@@ -89,8 +90,8 @@ def generate_step(
 
     step_points = [
         (x1, y1),
-        (x2, y1),
-        (x2, y3),
+        (x3, y1),
+        (x3, y3),
         (x1, y3)
     ]
     step = (cq
@@ -99,6 +100,7 @@ def generate_step(
             .close()
             .extrude(step_width))
 
+    side = None
     if side_height > 0.0:
         side_points = [
             (x0, y3),
@@ -112,24 +114,24 @@ def generate_step(
             .close()
             .extrude(step_width))
         side = side.edges("|Y and >Z").fillet(wall_thickness)
-        step = step.union(side)
 
     support_points = [
-        (x2, y0 - support_height),
-        (x3, y0 - support_height),
+        (x2, y0 - support_extra_height),
+        (x3, y0 - support_extra_height),
         (x3, y2),
         (x2, y2)
     ]
     support = (cq
-               .Workplane("YZ", origin=origin)
-               .polyline(support_points)
-               .close()
-               .extrude(step_width))
+            .Workplane("YZ", origin=origin)
+            .polyline(support_points)
+            .close()
+            .extrude(step_width))
 
-    return front, step, support
+    return front, side, step, support
 
 def combine_parts(
-        front: Workplane, step: Workplane, support: Workplane,
+        front: Workplane, side: Optional[Workplane],
+        step: Workplane, support: Workplane,
         apply_honeycomb: bool,
         y_offset, z_offset, connector_z_offset,
         cell_size, edge_width, shell_thickness) -> Workplane:
@@ -146,6 +148,9 @@ def combine_parts(
             shell_thickness=shell_thickness)
 
     front = front.translate((0, y_offset, z_offset))
+    if side is not None:
+        side = side.translate((0, y_offset, z_offset))
+        front = front.union(side)
     step = step.translate((0, y_offset, z_offset))
     support = support.translate((0, y_offset, z_offset))
     connector = cq.Workplane("YZ").copyWorkplane(step).translate((0, 0, -connector_z_offset))
@@ -164,7 +169,7 @@ def assembly_stand(
         step_width=STEP_WIDTH,
         step_depth=STEP_DEPTH,
         wall_thickness=WALL_THICKNESS,
-        side_height=SIDE_HEIGHT,
+        ledge_height=LEDGE_HEIGHT,
         cell_size=CELL_SIZE,
         edge_width=EDGE_WIDTH,
         shell_thickness=SHELL_THICKNESS) -> Workplane:
@@ -174,18 +179,20 @@ def assembly_stand(
     assert num_steps > 0, "Number of steps must greater than zero"
     z_offset = -(num_steps - 1) * step_height / 2.0
     y_offset = num_steps * step_depth / 2.0
+    first_step_offset = 0.0
     min_wall_size = shell_thickness * 2 + edge_width * 2 + cell_size
     all_steps = cq.Workplane("XY")
     # A bit of overhead for the special first step, but I like the idea of such a step
-    if first_step_height >= 0.0:
+    if first_step_height > 0.0:
         assert num_steps > 1, "With the first step enabled, number of steps must be greater than one"
         z_offset -= first_step_height / 2.0
         y_offset -= step_depth / 2.0
-        front, step, support = generate_step(
+        first_step_offset = first_step_height
+        front, side, step, support = generate_step(
             first_step_height, step_width, step_depth,
-            wall_thickness, side_height)
+            wall_thickness, ledge_height)
         all_steps = all_steps.union(combine_parts(
-            front, step, support,
+            front, side, step, support,
             apply_honeycomb=first_step_height > min_wall_size,
             y_offset=y_offset, z_offset=z_offset,
             connector_z_offset=0.0,
@@ -193,30 +200,48 @@ def assembly_stand(
             shell_thickness=shell_thickness))
         num_steps -= 1
 
-    first_step_offset = first_step_height if first_step_height >= 0.0 else 0.0
     for i in range(num_steps):
         z_offset += step_height
         y_offset -= step_depth
         support_height = step_height * i + first_step_offset
-        front, step, support = generate_step(
+        front, side, step, support = generate_step(
             step_height, step_width, step_depth,
-            wall_thickness, side_height,
-            front_z_offset=wall_thickness/2.0,
-            support_height=support_height)
+            wall_thickness, ledge_height,
+            front_z_offset=0.0 if i == 0 else wall_thickness / 2.0,
+            support_extra_height=support_height)
         all_steps = all_steps.union(combine_parts(
-            front, step, support,
+            front, side, step, support,
             apply_honeycomb=step_height > min_wall_size,
             y_offset=y_offset, z_offset=z_offset,
             connector_z_offset=support_height + step_height - wall_thickness * 2.0,
             cell_size=cell_size, edge_width=edge_width,
             shell_thickness=shell_thickness))
 
+    if ledge_height > 0.0:
+        z_offset += step_height
+        y_offset -= step_depth
+        front, side, _, _ = generate_step(
+            step_height,
+            step_width, step_depth,
+            wall_thickness, ledge_height,
+            front_z_offset=wall_thickness / 2.0)
+        front = honeycomb.apply_honeycomb(
+            front,
+            cell_size=cell_size,
+            edge_width=edge_width,
+            shell_thickness=shell_thickness)
+        front = front.translate((0, y_offset, z_offset))
+        if side is not None:
+            side = side.translate((0, y_offset, z_offset))
+            front = front.union(side)
+        all_steps = all_steps.union(front)
+
     return all_steps
 
 if __name__ == "__main__":
     steps = assembly_stand()
 
-    all_models = { "steps": steps }
+    all_models = { f'steps-{NUM_STEPS}{"-with_first_step" if FIRST_STEP_HEIGHT > 0.0 else ""}{"-with_ledges" if LEDGE_HEIGHT > 0.0 else ""}': steps }
 
     # Optional export
     cq_utils.export_models(DO_STL_EXPORT, DO_STEP_EXPORT, **all_models)
