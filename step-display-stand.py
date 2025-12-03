@@ -28,8 +28,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.2
-# Parametrized step display stand generator
+# v0.0.3
+# Parametrized step display stand generator. It's the only model that came into my mind which
+# can be printed as a whole. Although not the strongest one.
+# If printing with honeycomb infill, you may want to increase the z-hop value in your slicer
+# to avoid collisions with previously printed steps.
 
 import cq_utils
 import honeycomb
@@ -43,16 +46,16 @@ DO_STL_EXPORT = True
 DO_STEP_EXPORT = False
 
 # Configuration (tweak if needed)
-NUM_STEPS = 5
-FIRST_STEP_HEIGHT = 3.5            # special first step height (set <=0 to disable or at least to the same value as wall thickness)
-STEP_HEIGHT = 45.0
-STEP_WIDTH = 160.0
-STEP_DEPTH = 45.0
-LEDGE_HEIGHT = 20.0                 # height of the front ledge (set <=0 to disable)
-WALL_THICKNESS = 3.5               # thickness of all walls
-CELL_SIZE = 20.0                   # hex side length
-EDGE_WIDTH = WALL_THICKNESS * 2.0  # thickness of honeycomb walls
-SHELL_THICKNESS = EDGE_WIDTH       # thickness of preserved outer shell
+NUM_STEPS = 3
+FIRST_STEP_HEIGHT = 0.0                # special first step height (set <=0 to disable or at least to the same value as wall thickness)
+STEP_HEIGHT = 70.0
+STEP_WIDTH = 155.0
+STEP_DEPTH = 75.0
+LEDGE_HEIGHT = 0.0                     # height of the front ledge (set <=0 to disable)
+WALL_THICKNESS = 3.0                   # thickness of all walls
+CELL_SIZE = 18.0                       # honeycomb side length (set <=0 to disable honeycomb)
+EDGE_WIDTH = 10.0                      # thickness of honeycomb walls (set <=0 to disable honeycomb)
+SHELL_THICKNESS = 8.0                  # thickness of infill's outer shell (must be at least two times the wall thickness)
 
 def generate_step(
         step_height, step_width,
@@ -155,11 +158,12 @@ def combine_parts(
     step = step.translate((0, y_offset, z_offset))
     support = support.translate((0, y_offset, z_offset))
     connector = cq.Workplane("YZ").copyWorkplane(step).translate((0, 0, -connector_z_offset))
-    connector = honeycomb.apply_honeycomb(
-        connector,
-        cell_size=cell_size,
-        edge_width=edge_width,
-        shell_thickness=shell_thickness)
+    if apply_honeycomb:
+        connector = honeycomb.apply_honeycomb(
+            connector,
+            cell_size=cell_size,
+            edge_width=edge_width,
+            shell_thickness=shell_thickness)
 
     return front.union(step).union(support).union(connector)
 
@@ -183,6 +187,7 @@ def assembly_stand(
     first_step_offset = 0.0
     min_wall_size = shell_thickness * 2 + cell_size
     all_steps = cq.Workplane("XY")
+    honeycomb_possible = cell_size > 0.0 and edge_width > 0.0
     # A bit of overhead for the special first step, but I like the idea of such a step
     if first_step_height > 0.0:
         assert num_steps > 1, "With the first step enabled, number of steps must be greater than one"
@@ -194,13 +199,14 @@ def assembly_stand(
             wall_thickness, ledge_height)
         all_steps = all_steps.union(combine_parts(
             front, side, step, support,
-            apply_honeycomb=first_step_height > min_wall_size,
+            apply_honeycomb=honeycomb_possible and (first_step_height > min_wall_size),
             y_offset=y_offset, z_offset=z_offset,
             connector_z_offset=0.0,
             cell_size=cell_size, edge_width=edge_width,
             shell_thickness=shell_thickness))
         num_steps -= 1
 
+    apply_honeycomb = honeycomb_possible and (step_height > min_wall_size)
     for i in range(num_steps):
         z_offset += step_height
         y_offset -= step_depth
@@ -212,7 +218,7 @@ def assembly_stand(
             support_extra_height=support_height)
         all_steps = all_steps.union(combine_parts(
             front, side, step, support,
-            apply_honeycomb=step_height > min_wall_size,
+            apply_honeycomb=apply_honeycomb,
             y_offset=y_offset, z_offset=z_offset,
             connector_z_offset=support_height + step_height - wall_thickness * 2.0,
             cell_size=cell_size, edge_width=edge_width,
@@ -226,11 +232,12 @@ def assembly_stand(
             step_width, step_depth,
             wall_thickness, ledge_height,
             front_z_offset=wall_thickness / 2.0)
-        front = honeycomb.apply_honeycomb(
-            front,
-            cell_size=cell_size,
-            edge_width=edge_width,
-            shell_thickness=shell_thickness)
+        if apply_honeycomb:
+            front = honeycomb.apply_honeycomb(
+                front,
+                cell_size=cell_size,
+                edge_width=edge_width,
+                shell_thickness=shell_thickness)
         front = front.translate((0, y_offset, z_offset))
         if side is not None:
             side = side.translate((0, y_offset, z_offset))
@@ -242,7 +249,11 @@ def assembly_stand(
 if __name__ == "__main__":
     steps = assembly_stand()
 
-    all_models = { f'steps-{NUM_STEPS}-w_{STEP_WIDTH}-h_{STEP_HEIGHT}-d_{STEP_DEPTH}-first_step_{FIRST_STEP_HEIGHT}-ledge_{LEDGE_HEIGHT}': steps }
+    all_models = {(
+        f'steps-{NUM_STEPS}-width_{STEP_WIDTH}-height_{STEP_HEIGHT}-depth_{STEP_DEPTH}'
+        f'-first_step_{FIRST_STEP_HEIGHT}-ledge_{LEDGE_HEIGHT}'
+        f'-wall_{WALL_THICKNESS}-cell_{CELL_SIZE}-cell_edge_{EDGE_WIDTH}-shell_{SHELL_THICKNESS}'
+        ): steps }
 
     # Optional export
     cq_utils.export_models(DO_STL_EXPORT, DO_STEP_EXPORT, **all_models)
