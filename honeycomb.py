@@ -79,29 +79,22 @@ def _honeycomb_grid(width, height, cell_size, edge_width, thickness, plane):
     Union of all hex rings covering a bounding box
     """
     centers = list(_hex_centers(width, height, cell_size))
-    if not centers:
+    inner_r = max(cell_size - edge_width / 2.0, 0)
+    if not centers or inner_r <= 0:
         return cq.Workplane(plane)
 
-    outer = (
-        cq.Workplane(plane)
-        .pushPoints(centers)
-        .polygon(6, 2 * cell_size)
-        .extrude(thickness / 2.0, both=True, combine=True)
-        .combineSolids()
+    pattern = (cq
+               .Sketch()
+               .rect(width, height)
+               .push(centers)
+               .regularPolygon(inner_r, 6, 90, mode="s")
     )
 
-    inner_r = max(cell_size - edge_width / 2.0, 0)
-    if inner_r > 0:
-        inner = (
-            cq.Workplane(plane)
-            .pushPoints(centers)
-            .polygon(6, 2 * inner_r)
+    return (cq
+            .Workplane(plane)
+            .placeSketch(pattern)
             .extrude(thickness / 2.0, both=True, combine=True)
-            .combineSolids()
-        )
-        return outer.cut(inner)
-
-    return outer
+            )
 
 def _resolve_orientation(solid, normal_axis: Optional[str]):
     """
