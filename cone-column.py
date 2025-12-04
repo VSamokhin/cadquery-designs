@@ -28,7 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.1
+# v0.0.2
 # Two hollow cone columns, one with a built-in ISO-thread and the other with a recess for a separate nut.
 # I use these as limiters on my roller shutters.
 
@@ -46,7 +46,7 @@ BASE_DIAMETER = 23.0
 TOP_DIAMETER = 19.0
 HEIGHT = 40.0
 
-HOLE_DIAMETER = 15.0
+INNER_DIAMETER = 15.0
 
 # Cone with embedded thread
 # E.g. M5: 5.0/0.8, M6: 6.0/1.0
@@ -77,7 +77,7 @@ if __name__ == "__main__":
                           .Workplane("XY")
                           .add(cone)
                           .faces(">Z")
-                          .hole(HOLE_DIAMETER, HEIGHT - THREAD_LENGTH)
+                          .hole(INNER_DIAMETER, HEIGHT - THREAD_LENGTH)
                           .faces("<Z")
                           .workplane()
                           .hole(THREAD_DIAMETER, depth=THREAD_LENGTH)
@@ -93,13 +93,22 @@ if __name__ == "__main__":
                       .Workplane("XY")
                       .add(cone)
                       .faces(">Z")
-                      .hole(HOLE_DIAMETER, HEIGHT - NUT_HEIGHT - BOTTOM_THICK)
+                      .hole(INNER_DIAMETER, HEIGHT - NUT_HEIGHT - BOTTOM_THICK)
                       .cut(nut)
                       .faces("<Z")
                       .workplane()
                       .hole(SCREW_HOLE_DIAMETER, depth=BOTTOM_THICK))
 
-    all_models = { "column_with_thread": column_with_thread, "column_for_nut": column_for_nut }
+    column_with_thread_name = (
+        f"column_with_thread_M{THREAD_DIAMETER}x{THREAD_PITCH}x{THREAD_LENGTH}-"
+        f"diameter_{BASE_DIAMETER}_to_{TOP_DIAMETER}_inner_{INNER_DIAMETER}-height_{HEIGHT}"
+        )
+    column_for_nut_name = (
+        f"column_for_nut_{NUT_DIAMETER}x{NUT_HEIGHT}-"
+        f"diameter_{BASE_DIAMETER}_to_{TOP_DIAMETER}_inner_{INNER_DIAMETER}-height_{HEIGHT}-"
+        f"bottom_{BOTTOM_THICK}-screw_hole_{SCREW_HOLE_DIAMETER}"
+        )
+    all_models = { column_with_thread_name: column_with_thread, column_for_nut_name: column_for_nut }
 
     # Optional export
     cq_utils.export_models(DO_STL_EXPORT, DO_STEP_EXPORT, **all_models)

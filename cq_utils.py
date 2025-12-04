@@ -28,7 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.1
+# v0.0.2
 # Utility module to share code snippets across the designs
 
 import cadquery as cq
@@ -40,7 +40,7 @@ import os
 def show_models(**kwargs: Workplane):
     """Show models, passed in as named argumets, with OCP Viewer"""
     for name, model in kwargs.items():
-        nice_name = name.replace("_", " ").title()
+        nice_name = name.replace("_", " ").replace("-", " ").title()
         show_object(model, name=nice_name)
 
 def export_models(stl_export=True, step_export=False, **kwargs: Workplane):
