@@ -28,9 +28,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.0
+# v0.0.1
 # Home baristas' best friend, a tampering station with some additional slots
 # to store tools and accessories like leveler, tamper, screens, porta filters, etc.
+# My work is inspired by https://www.printables.com/model/773844-heavy-tamperstation
 
 from functools import reduce
 import cq_utils
@@ -145,7 +146,10 @@ def calculate_shift(diameter: float, rect_width: float):
     return r - x
 
 def create_box(bbox: tuple[Vertex, Vertex]) -> cq.Workplane:
-    """Create a box from bounding box coordinates"""
+    """
+    Create a box from bounding box coordinates.
+    Basically this is a debug helper to visualize bounding boxes.
+    """
     min_pt, max_pt = bbox
     size_x = max_pt[0] - min_pt[0]
     size_y = max_pt[1] - min_pt[1]
@@ -304,10 +308,12 @@ if __name__ == "__main__":
         .fillet(DRAWER_FILLET_RADIUS)
     )
 
-    objects = base.faces(BoxSelector(left_drawer_chamfer_bbox[0], left_drawer_chamfer_bbox[1]).__sub__(StringSyntaxSelector("<X"))).edges("|Y")[1]
-    selected_objects = cq.Workplane("XY").newObject(objects)
+    #objects = base.faces(">Z")
+    #selected_objects = cq.Workplane("XY").newObject(objects)
+    #cq_utils.show_models(selected_objects=selected_objects)
+    #cq_utils.show_models(bounding_box=create_box(right_drawer_bbox))
 
-    all_models = { "tampering station": base } #, "selected objects": selected_objects, "left drawer bbox": create_box(lower_left_slots_bbox) } #, "right drawer bbox": create_box(right_drawer_bbox), "porta filter bbox": create_box(porta_filter_bbox) }
+    all_models = { "tampering station": base }
 
     # Optional export
     cq_utils.export_models(DO_STL_EXPORT, DO_STEP_EXPORT, **all_models)

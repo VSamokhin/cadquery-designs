@@ -18,3 +18,7 @@ Two hollow cone columns, one with a built-in ISO-thread and the other with a rec
 
 ## step-display-stand.py
 Step display stand generator with various parameters available to configure
+
+## tampering-station.py
+Home baristas' best friend, a tampering station with some additional slots to store tools and accessories like leveler,
+tamper, screens, porta filters, etc.
