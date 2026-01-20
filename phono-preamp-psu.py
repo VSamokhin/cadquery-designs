@@ -28,7 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.4
+# v0.0.5
 # DIY phono-preamp and separate PSU cases.
 # In my setup the PSU unit is only a 15-0-15V transformer, becasue rectifier circuit is built into the phono-preamp.
 # For a better noise protection, the phono-preamp case should be shielded from inside using an adhesive copper foil,
@@ -92,6 +92,8 @@ BOSS_DIAMETER = NUT_HOLE_DIAMETER * 2.0  # Attach-lid-to-base boss diameter
 
 VENT_SPACING = 10.0    # Spacing between vents
 VENT_SLOT_WIDTH = 3.0  # Width of each vent slot
+
+FILLET_RADIUS = 0.5      # General fillet radius for edges
 
 def add_vertical_wall_vents(wall: Workplane,
                             area_length, area_height,
@@ -284,10 +286,11 @@ def build_lid(width, length,
 
     return top, front, left, right
 
-# Add aligments in the bottom and top plate
-def add_aligments_assemble(base_bottom: Workplane, base_rear: Workplane,
+def assemble_parts(base_bottom: Workplane, base_rear: Workplane,
                            lid_top: Workplane, lid_front: Workplane,
-                           lid_left: Workplane, lid_right: Workplane) -> tuple[Workplane, Workplane]:
+                           lid_left: Workplane, lid_right: Workplane,
+                           fillet_radius: float = FILLET_RADIUS) -> tuple[Workplane, Workplane]:
+
     base_bottom = (base_bottom
                    .cut(lid_front)
                    .cut(lid_left)
@@ -296,7 +299,19 @@ def add_aligments_assemble(base_bottom: Workplane, base_rear: Workplane,
     lid_left = lid_left.cut(base_rear)
     lid_right = lid_right.cut(base_rear)
 
-    return base_bottom.union(base_rear), lid_top.union(lid_front).union(lid_left).union(lid_right)
+    # Filleting is here for aesthetic and better parts fitting purposes.
+    # The following approach allows for some imperfect issue in the rear part of the base,
+    # but generally gives good results without making the process yet more complicated.
+
+    # For the sake of simplicity, let's fillet base's parts separately
+    base_rear = base_rear.edges(">Z or |Z").fillet(fillet_radius)
+    base_bottom = base_bottom.edges("|Z or >Z or <Z").fillet(fillet_radius)
+
+    # Fillet edges of the lid when it's fully assembled
+    lid = lid_top.union(lid_front).union(lid_left).union(lid_right)
+    lid = lid.edges(">Z or ((>Y or <Y or >X or <X) exc <Z)").fillet(fillet_radius)
+
+    return base_bottom.union(base_rear), lid
 
 # Create rear wall cutouts for preamp
 def add_preamp_rear_connectors(base: Workplane,
@@ -306,7 +321,8 @@ def add_preamp_rear_connectors(base: Workplane,
                                power_dia=POWER_DIAMETER,
                                ground_dia=GND_DIAMETER,
                                base_wall_thick=BASE_WALL_THICK,
-                               lid_wall_thick=LID_WALL_THICK) -> Workplane:
+                               lid_wall_thick=LID_WALL_THICK,
+                               add_labels=True) -> Workplane:
     # Place input pair centered at X = -30, power at X = 0, output pair at X = +30 (approx)
     cinch_interval = 15.0
     cinch_x_offset = cinch_interval + power_dia
@@ -324,43 +340,69 @@ def add_preamp_rear_connectors(base: Workplane,
             .hole(ground_dia, depth=base_wall_thick) # Ground terminal
             .pushPoints([(output_1_x_offset, z_offset), (cinch_interval / 2.0 + cinch_x_offset, z_offset)])
             .hole(cinch_dia, depth=base_wall_thick)) # Output pair
-    text_depth = 0.5
-    font_size = 4.0
-    text_y_offset = -(preamp_length / 2.0 - lid_wall_thick)
-    text_input = (cq
-                  .Workplane("XZ")
-                  .text("Input", font_size, text_depth)
-                  .translate((input_1_x_offset + cinch_dia, text_y_offset, z_offset + cinch_dia * 1.3)))
-    text_output = (cq
-                   .Workplane("XZ")
-                   .text("Output", font_size, text_depth)
-                   .translate((output_1_x_offset + cinch_dia, text_y_offset, z_offset + cinch_dia * 1.3)))
-    return base.union(text_input).union(text_output)
+
+    if add_labels:
+        text_depth = 0.5
+        font_size = 4.0
+        text_y_offset = -(preamp_length / 2.0 - lid_wall_thick)
+        text_input = (cq
+                    .Workplane("XZ")
+                    .text("Input", font_size, text_depth)
+                    .translate((input_1_x_offset + cinch_dia, text_y_offset, z_offset + cinch_dia * 1.3)))
+        text_ground = (cq
+                    .Workplane("XZ")
+                    .text("Ground", font_size, text_depth)
+                    .translate((0, text_y_offset, z_offset + power_dia * 1.3)))
+        text_output = (cq
+                    .Workplane("XZ")
+                    .text("Output", font_size, text_depth)
+                    .translate((output_1_x_offset + cinch_dia, text_y_offset, z_offset + cinch_dia * 1.3)))
+        text_power = (cq
+                    .Workplane("XZ")
+                    .text("Power", font_size, text_depth)
+                    .translate((power_dia * 1.3, text_y_offset, z_offset - ground_dia / 2.0 - cinch_dia + font_size / 2.0)))
+        base = base.union(text_input).union(text_ground).union(text_output).union(text_power)
+
+    return base
 
 
 # Create rear wall cutouts for PSU
 def add_psu_rear_connectors(base: Workplane,
-                            width_psu=PSU_WIDTH,
                             height=HEIGHT,
+                            psu_length=PSU_LENGTH,
+                            psu_width=PSU_WIDTH,
                             power_dia=POWER_DIAMETER,
                             socket_width=POWER_SOCKET_WIDTH,
                             socket_height=POWER_SOCKET_HEIGHT,
                             base_wall_thick=BASE_WALL_THICK,
-                            lid_wall_thick=LID_WALL_THICK) -> Workplane:
+                            lid_wall_thick=LID_WALL_THICK,
+                            add_labels: bool=True) -> Workplane:
     hole_x_offset = 9.0
     z_offset = height / 2.0
-    return (base
+    base = (base
             .faces("<Y")
             .workplane(offset=-lid_wall_thick - base_wall_thick, centerOption="CenterOfMass")
-            .moveTo(-width_psu / 2.0 + socket_width / 2.0 + hole_x_offset + base_wall_thick, z_offset)
+            .moveTo(-psu_width / 2.0 + socket_width / 2.0 + hole_x_offset + base_wall_thick, z_offset)
             .rect(socket_width, socket_height)
             .cutBlind(until=base_wall_thick)          # Power socket cutout
-            .moveTo(-width_psu / 2.0 + socket_width / 2.0 + hole_x_offset + base_wall_thick, z_offset)
+            .moveTo(-psu_width / 2.0 + socket_width / 2.0 + hole_x_offset + base_wall_thick, z_offset)
             .rect(socket_width, socket_height + 4.0)
             .cutBlind(until=base_wall_thick-2.0)      # Power socket mounts
             .transformed(offset=(0, 0, lid_wall_thick))
-            .pushPoints([(width_psu / 2.0 - power_dia / 2.0 - hole_x_offset - base_wall_thick, z_offset)])
+            .pushPoints([(psu_width / 2.0 - power_dia / 2.0 - hole_x_offset - base_wall_thick, z_offset)])
             .hole(power_dia, depth=base_wall_thick))  # Power out
+
+    if add_labels:
+        text_depth = 0.5
+        font_size = 4.0
+        text_y_offset = -(psu_length / 2.0 - lid_wall_thick)
+        text_power = (cq
+                    .Workplane("XZ")
+                    .text("PWR Out", font_size, text_depth)
+                    .translate((psu_width / 2.0 - power_dia / 2.0 - hole_x_offset - base_wall_thick, text_y_offset, z_offset + power_dia)))
+        base = base.union(text_power)
+
+    return base
 
 # Create bottom and front cutouts for preamp
 def add_preamp_control_cutouts(base: Workplane, offset_y,
@@ -389,14 +431,15 @@ def add_preamp_control_cutouts(base: Workplane, offset_y,
 if __name__ == "__main__":
     # Build preamp base (bottom + rear wall)
     preamp_bottom, preamp_rear = build_base(PREAMP_WIDTH, PREAMP_LENGTH)
-    # Add PCB mounting stages and holes
-    # Move PCB cloeser to the front wall to make room for rear connectors
-    preamp_pcb_offset_y = (PREAMP_LENGTH - PREAMP_PCB_SPACING_Y) / 2.0 - LID_WALL_THICK - BOSS_DIAMETER - PCB_STAGE_DIAMETER - 3.0
-    preamp_bottom = add_pcb_mounts(preamp_bottom, PREAMP_PCB_SPACING_X, PREAMP_PCB_SPACING_Y, preamp_pcb_offset_y)
     # Build preamp lid (top + side walls)
     preamp_top, preamp_front, preamp_left, preamp_right = build_lid(PREAMP_WIDTH, PREAMP_LENGTH)
     # Make sure lid fits over base
-    preamp_base, preamp_lid = add_aligments_assemble(preamp_bottom, preamp_rear, preamp_top, preamp_front, preamp_left, preamp_right)
+    preamp_base, preamp_lid = assemble_parts(preamp_bottom, preamp_rear, preamp_top, preamp_front, preamp_left, preamp_right)
+
+    # Add PCB mounting stages and holes
+    # Move PCB closer to the front wall to make room for rear connectors
+    preamp_pcb_offset_y = (PREAMP_LENGTH - PREAMP_PCB_SPACING_Y) / 2.0 - LID_WALL_THICK - BOSS_DIAMETER - PCB_STAGE_DIAMETER - 3.0
+    preamp_base = add_pcb_mounts(preamp_base, PREAMP_PCB_SPACING_X, PREAMP_PCB_SPACING_Y, preamp_pcb_offset_y)
 
     # Add connector cutouts
     preamp_base = add_preamp_rear_connectors(preamp_base)
@@ -426,12 +469,13 @@ if __name__ == "__main__":
 
     # Build PSU base (bottom + rear wall)
     psu_bottom, psu_rear = build_base(PSU_WIDTH, PSU_LENGTH)
-    # Add PCB mounting stages and holes
-    psu_bottom = add_pcb_mounts(psu_bottom, PSU_PCB_SPACING_X, PSU_PCB_SPACING_Y, (PSU_LENGTH - PSU_PCB_SPACING_Y) / 4.0 - BASE_WALL_THICK / 2.0)
     # Build PSU lid (top + side walls)
     psu_top, psu_front, psu_left, psu_right = build_lid(PSU_WIDTH, PSU_LENGTH)
     # Make sure lid fits over base
-    psu_base, psu_lid = add_aligments_assemble(psu_bottom, psu_rear, psu_top, psu_front, psu_left, psu_right)
+    psu_base, psu_lid = assemble_parts(psu_bottom, psu_rear, psu_top, psu_front, psu_left, psu_right)
+
+    # Add PCB mounting stages and holes
+    psu_base = add_pcb_mounts(psu_base, PSU_PCB_SPACING_X, PSU_PCB_SPACING_Y, (PSU_LENGTH - PSU_PCB_SPACING_Y) / 4.0 - BASE_WALL_THICK / 2.0)
 
     # Add connector cutouts
     psu_base = add_psu_rear_connectors(psu_base)
