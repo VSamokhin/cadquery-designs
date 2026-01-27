@@ -22,3 +22,6 @@ Step display stand generator with various parameters available to configure
 ## tampering-station.py
 Home baristas' best friend, a tampering station with some additional slots to store tools and accessories like leveler,
 tamper, screens, porta filters, etc.
+
+## ikea-kvartal-hook-adapter.py
+IKEA Kvartal (a curtain hanging system) is discontinued since 2016, but it was a high-quality product and I don't want simply throw it out. So here is a hook adapter for Kvartal's gliders.
