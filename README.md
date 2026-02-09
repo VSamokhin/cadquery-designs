@@ -19,7 +19,7 @@ DIY phono-preamp and separate PSU cases.
 ## cone-column.py
 Two hollow cone columns, one with a built-in ISO-thread and the other with a recess for a nut. I use these as limiters on my roller shutters.
 
-![Cone Coilumn](./etc/img/cone-column.png)
+![Cone Column](./etc/img/cone-column.png)
 
 ## step-display-stand.py
 Step display stand generator with various parameters available to configure
