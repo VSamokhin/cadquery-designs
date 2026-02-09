@@ -11,17 +11,28 @@ Just a convenient utility module to share code snippets across the designs
 Utility module for applying honeycomb infill pattern to a given wall
 
 ## phono-preamp-psu.py
-DIY phono-preamp and separate PSU cases
+DIY phono-preamp and separate PSU cases.
+
+![Preamp Case](./etc/img/phono-preamp.png)
+![PSU Case](./etc/img/phono-psu.png)
 
 ## cone-column.py
 Two hollow cone columns, one with a built-in ISO-thread and the other with a recess for a nut. I use these as limiters on my roller shutters.
 
+![Cone Coilumn](./etc/img/cone-column.png)
+
 ## step-display-stand.py
 Step display stand generator with various parameters available to configure
+
+![Step Stand](./etc/img/step-display-stand.png)
 
 ## tampering-station.py
 Home baristas' best friend, a tampering station with some additional slots to store tools and accessories like leveler,
 tamper, screens, porta filters, etc.
 
+![Step Stand](./etc/img/tampering-station.png)
+
 ## ikea-kvartal-hook-adapter.py
 IKEA Kvartal (a curtain hanging system) is discontinued since 2016, but it was a high-quality product and I don't want simply throw it out. So here is a hook adapter for Kvartal's gliders.
+
+![Kvartal Hook](./etc/img/ikea-kvartal-hook-adapter.png)
