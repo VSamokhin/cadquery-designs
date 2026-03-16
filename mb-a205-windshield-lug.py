@@ -42,29 +42,30 @@ DO_STEP_EXPORT = False
 # =========================
 # Parameters
 # =========================
-BASE_W = 18.0          # X
-BASE_D = 18.0          # Y
+BASE_W = 17.0          # X
+BASE_D = 17.0          # Y
 BASE_H = 20.0          # Z
-BASE_CORNER_FILLET = 4.0
+BASE_CORNER_FILLET = 6.0
 
 CUT_OFF_H = 5.0        # Z
 
 EAR_TH = 5.0           # Thickness of ear in X
 EAR_HOLE_D = 6.0       # Hole diameter
 EAR_CSK_D = EAR_HOLE_D + 1.5
-EAR_OUTER_R = 7.0      # Total length of ear from apex to the farest point of circle is 3 * R
-EAR_OFFSET_X = -5.0
-EAR_OFFSET_Y = 2.0
+EAR_OUTER_R = 8.0      # Total length of ear from apex to the farest point of circle is 3 * R
+EAR_OFFSET_X = -4.0
+EAR_OFFSET_Y = 5.0
 
 # Small rear latch/tab visible on photos (approximate)
 REAR_TAB_W = 7.0
 REAR_TAB_D = 3.0
 REAR_TAB_H = 4.0
-REAR_TAB_OFFSET_X = -4.0
-REAR_TAB_OFFSET_Y = 5.0
-REAR_TAB_FILLET = 0.95
+REAR_TAB_OFFSET_X = -2.0
+REAR_TAB_OFFSET_Y = 4.0
+REAR_TAB_FILLET = 0.7
 
-RABBET_W = 2.5
+RABBET_W = 2.0
+RABBET_H = 3.0
 RABBET_OFFSET_X1 = 6.0  # Bottom-left
 RABBET_OFFSET_X2 = 2.0  # Top-right
 
@@ -84,6 +85,8 @@ if __name__ == "__main__":
         .polyline([base_p1, base_p2, base_p3, base_p4])
         .close()
         .extrude(BASE_H)
+        .edges("|Z and >X")
+        .fillet(3.5)
         .edges("|Z")
         .fillet(BASE_CORNER_FILLET)
     )
@@ -112,6 +115,20 @@ if __name__ == "__main__":
     )
 
     # =========================
+    # Holes
+    # =========================
+    part = (
+        part
+        .faces("<X")
+        .workplane()
+        .pushPoints([(-EAR_OFFSET_Y + 2.0 * EAR_OUTER_R, BASE_H)])
+        .hole(EAR_CSK_D + 3.0)
+        .pushPoints([(-EAR_OFFSET_Y + 2.0 * EAR_OUTER_R, BASE_H)])
+        .hole(2.5 * EAR_OUTER_R, BASE_W / 2.0 + EAR_OFFSET_X)
+        .union(ear_profile)
+    )
+
+    # =========================
     # L-shaped cut-off
     # =========================
     cut_off = (
@@ -120,22 +137,10 @@ if __name__ == "__main__":
         .close()
         .polyline([(EAR_OFFSET_X, base_p1[1]), base_p2, (base_p2[0], REAR_TAB_OFFSET_Y), (EAR_OFFSET_X, REAR_TAB_OFFSET_Y)])
         .close()
-        .extrude(CUT_OFF_H)
+        .extrude(CUT_OFF_H + 3)
     )
 
     part = part.cut(cut_off)
-
-    # =========================
-    # Hole
-    # =========================
-    part = (
-        part
-        .faces("<X")
-        .workplane()
-        .pushPoints([(-EAR_OFFSET_Y + 2.0 * EAR_OUTER_R, BASE_H)])
-        .hole(EAR_CSK_D + 1.5)
-        .union(ear_profile)
-    )
 
     # =========================
     # Small R-shaped tab / stop
@@ -143,8 +148,8 @@ if __name__ == "__main__":
     tab_p1 = (0.0, REAR_TAB_H)
     tab_p2 = (REAR_TAB_D, REAR_TAB_H)
     tab_p3 = (REAR_TAB_D, REAR_TAB_H / 2.0)
-    tab_p4 = (REAR_TAB_D / 2.0, REAR_TAB_H / 2.0)
-    tab_p5 = (REAR_TAB_D / 2.0, 0.0)
+    tab_p4 = (REAR_TAB_D * 0.6, REAR_TAB_H / 2.0)
+    tab_p5 = (REAR_TAB_D * 0.6, 0.0)
     tab_p6 = (0.0, 0.0)
     rear_tab = (
         cq.Workplane("YZ", origin=(REAR_TAB_OFFSET_X, REAR_TAB_OFFSET_Y, BASE_H - CUT_OFF_H))
@@ -179,7 +184,7 @@ if __name__ == "__main__":
 
     rabbet = (
         cq.Workplane("XY", origin=(rabbet_p1[0], rabbet_offset_z))
-        .rect(RABBET_W, RABBET_W)
+        .rect(RABBET_W, RABBET_H)
         .sweep(rabbet_path, isFrenet=False)
     )
 
