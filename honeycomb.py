@@ -108,7 +108,6 @@ def _resolve_orientation(solid, normal_axis: Optional[str]):
         "Y": (bb.ymin + bb.ymax) / 2.0,
         "Z": (bb.zmin + bb.zmax) / 2.0,
     }
-    minima = { "X": bb.xmin, "Y": bb.ymin, "Z": bb.zmin }
 
     if normal_axis is None:
         normal_axis = min(lengths, key=lengths.get) # pyright: ignore[reportArgumentType, reportCallIssue]
