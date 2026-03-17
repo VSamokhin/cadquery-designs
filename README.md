@@ -39,4 +39,4 @@ IKEA Kvartal (a curtain hanging system) is discontinued since 2016, but it was a
 Two lugs for Mercedes-Benz wind shield (A2058680009), which is for A205 cabrio.
 There are several different types of plastic lugs in this wind shield, but you won't confuse them visually.
 
-![Kvartal Hook](./etc/img/ikea-kvartal-hook-adapter.png)
+![Wind Shield Lug](./etc/img/mb-a205-windshield-lug.png)
