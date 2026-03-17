@@ -29,11 +29,17 @@
 ################################################################################
 #
 # v0.0.1
+# Two lugs of my Mercedes-Benz wind shield (A2058680009), which is for A205 cabrio,
+# were broken. There are several different types of plastic lugs in this wind shield,
+# but you won't confuse them visually.
+# Use a kind of reinforced with fibers filament for the print, mine was ABS-GF.
+# Will see how good it holds out.
 
 import cq_utils
 import cadquery as cq
 import math
-
+from cadquery import Workplane
+from typing import Sequence
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True
@@ -45,11 +51,19 @@ DO_STEP_EXPORT = False
 BASE_W = 17.0          # X
 BASE_D = 17.0          # Y
 BASE_H = 20.0          # Z
-BASE_CORNER_FILLET = 6.0
+BASE_FILLET_1 = 3.0
+BASE_FILLET_3 = 6.0
+
+INSERT_H = 30.0
+INSERT_WALL_W = 3.0
+INSERT_WALL_D = 2.5
+INSERT_GROOVE_W = 6.5
+INSERT_GROOVE_D = 5.5
+INSERT_GROOVE_FILLET = 1.5
 
 CUT_OFF_H = 5.0        # Z
 
-EAR_TH = 5.0           # Thickness of ear in X
+EAR_TH = 6.0           # Thickness of ear in X
 EAR_HOLE_D = 6.0       # Hole diameter
 EAR_CSK_D = EAR_HOLE_D + 1.5
 EAR_OUTER_R = 8.0      # Total length of ear from apex to the farest point of circle is 3 * R
@@ -69,27 +83,64 @@ RABBET_H = 3.0
 RABBET_OFFSET_X1 = 6.0  # Bottom-left
 RABBET_OFFSET_X2 = 2.0  # Top-right
 
+type Point = tuple[float, float]
+
+def create_base(
+        width: float,
+        depth: float,
+        height: float,
+        fillet_1: float,
+        fillet_3: float) -> tuple[Workplane, Sequence[Point]]:
+
+    x = width / 2.0
+    y = depth / 2.0
+    diff_x = width / 9.5
+    p1 = (-x, y)
+    p2 = (x + diff_x, y)
+    p3 = (x, -y)
+    p4 = (-x, -y)
+    return ((
+        cq.Workplane("XY")
+        .polyline([p1, p2, p3, p4])
+        .close()
+        .extrude(height)
+        .edges("|Z and >X")
+        .fillet(fillet_1)
+        .edges("|Z")
+        .fillet(fillet_3)
+    ), [p1, p2, p3, p4])
+
 if __name__ == "__main__":
     # =========================
     # Base block
     # =========================
-    base_x = BASE_W / 2.0
-    base_y = BASE_D / 2.0
-    base_diff_x = BASE_W / 9.0
-    base_p1 = (-base_x, base_y)
-    base_p2 = (base_x + base_diff_x, base_y)
-    base_p3 = (base_x, -base_y)
-    base_p4 = (-base_x, -base_y)
-    part = (
-        cq.Workplane("XY")
-        .polyline([base_p1, base_p2, base_p3, base_p4])
-        .close()
-        .extrude(BASE_H)
-        .edges("|Z and >X")
-        .fillet(3.5)
-        .edges("|Z")
-        .fillet(BASE_CORNER_FILLET)
+    part, base_p = create_base(BASE_W, BASE_D, BASE_H, BASE_FILLET_1, BASE_FILLET_3)
+
+    insert_w = BASE_W - INSERT_WALL_W
+    insert_d = BASE_D - INSERT_WALL_D
+    insert, _ = create_base(
+         insert_w,
+         insert_d,
+         INSERT_H,
+         BASE_FILLET_1, BASE_FILLET_3)
+
+    groove_left_x = -insert_w / 2.0 + INSERT_GROOVE_W / 2.0 + 2.0
+    groove = (
+        cq.Workplane("YZ", origin=(groove_left_x, -INSERT_H, insert_d / 2.0 - INSERT_GROOVE_D))
+        .box(INSERT_H, INSERT_GROOVE_D, INSERT_GROOVE_W, centered=(False, False, True))
+        .edges("<Z and |Y")
+        .fillet(INSERT_GROOVE_FILLET)
+        .rotate((0, 0, 0), (1, 0, 0), 90)
     )
+
+    insert = (
+        insert
+        .translate((0.0, 0.0, -INSERT_H))
+        .cut(groove)
+        .edges("<Z or |Z")
+        .fillet(0.5)
+    )
+    part = part.union(insert)
 
     # =========================
     # Ear / lug
@@ -133,9 +184,9 @@ if __name__ == "__main__":
     # =========================
     cut_off = (
         cq.Workplane("XY", origin=(0.0, 0.0, BASE_H - CUT_OFF_H))
-        .polyline([base_p1, (EAR_OFFSET_X, base_p1[1]), (EAR_OFFSET_X, base_p4[1]), base_p4])
+        .polyline([base_p[0], (EAR_OFFSET_X, base_p[0][1]), (EAR_OFFSET_X, base_p[3][1]), base_p[3]])
         .close()
-        .polyline([(EAR_OFFSET_X, base_p1[1]), base_p2, (base_p2[0], REAR_TAB_OFFSET_Y), (EAR_OFFSET_X, REAR_TAB_OFFSET_Y)])
+        .polyline([(EAR_OFFSET_X, base_p[0][1]), base_p[1], (base_p[1][0], REAR_TAB_OFFSET_Y), (EAR_OFFSET_X, REAR_TAB_OFFSET_Y)])
         .close()
         .extrude(CUT_OFF_H + 3)
     )
