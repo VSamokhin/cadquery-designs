@@ -55,28 +55,28 @@ BASE_FILLET_1 = 3.0
 BASE_FILLET_3 = 6.0
 
 INSERT_H = 30.0
-INSERT_WALL_W = 3.0
+INSERT_WALL_W = 3.25
 INSERT_WALL_D = 2.5
 INSERT_GROOVE_W = 6.5
 INSERT_GROOVE_D = 5.5
 INSERT_GROOVE_FILLET = 1.5
 
-CUT_OFF_H = 5.0        # Z
+CUT_OFF_H = 6.0        # Z
 
-EAR_TH = 6.0           # Thickness of ear in X
+EAR_TH = 5.0           # Thickness of ear in X
 EAR_HOLE_D = 6.0       # Hole diameter
 EAR_CSK_D = EAR_HOLE_D + 1.5
 EAR_OUTER_R = 8.0      # Total length of ear from apex to the farest point of circle is 3 * R
 EAR_OFFSET_X = -4.0
-EAR_OFFSET_Y = 5.0
+EAR_OFFSET_Y = 6.0
 
 # Small rear latch/tab visible on photos (approximate)
 REAR_TAB_W = 7.0
-REAR_TAB_D = 3.0
+REAR_TAB_D = 3.5
 REAR_TAB_H = 4.0
 REAR_TAB_OFFSET_X = -2.0
 REAR_TAB_OFFSET_Y = 4.0
-REAR_TAB_FILLET = 0.7
+REAR_TAB_FILLET = 0.8
 
 RABBET_W = 2.0
 RABBET_H = 3.0
