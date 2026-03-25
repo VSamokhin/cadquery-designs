@@ -28,7 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 #
-# v0.0.1
+# v0.0.2
 # Two lugs of my Mercedes-Benz wind shield (A2058680009), which is for A205 cabrio,
 # were broken. There are several different types of plastic lugs in this wind shield,
 # but you won't confuse them visually.
@@ -65,7 +65,8 @@ CUT_OFF_H = 6.0        # Z
 
 EAR_TH = 5.0           # Thickness of ear in X
 EAR_HOLE_D = 6.0       # Hole diameter
-EAR_CSK_D = EAR_HOLE_D + 1.5
+EAR_BOLT_HEAD_D = 12.5
+EAR_CSK_D = 0.0
 EAR_OUTER_R = 8.0      # Total length of ear from apex to the farest point of circle is 3 * R
 EAR_OFFSET_X = -4.0
 EAR_OFFSET_Y = 6.0
@@ -160,7 +161,6 @@ if __name__ == "__main__":
         .faces(">X")
         .workplane()
         .pushPoints([(-2.0 * EAR_OUTER_R, 0.0)])
-        .cskHole(EAR_HOLE_D, EAR_CSK_D, 82.0)
         #.edges("|X and (>Z or <Z)")
         #.fillet(EAR_OUTER_RADIUS - 1.0)
     )
@@ -168,12 +168,14 @@ if __name__ == "__main__":
     # =========================
     # Holes
     # =========================
+    ear_profile = ear_profile.cskHole(EAR_HOLE_D, EAR_CSK_D, 82.0) if EAR_CSK_D > 0.0 else ear_profile.hole(EAR_HOLE_D)
+
     part = (
         part
         .faces("<X")
         .workplane()
         .pushPoints([(-EAR_OFFSET_Y + 2.0 * EAR_OUTER_R, BASE_H)])
-        .hole(EAR_CSK_D + 3.0)
+        .hole(EAR_BOLT_HEAD_D)
         .pushPoints([(-EAR_OFFSET_Y + 2.0 * EAR_OUTER_R, BASE_H)])
         .hole(2.5 * EAR_OUTER_R, BASE_W / 2.0 + EAR_OFFSET_X)
         .union(ear_profile)
