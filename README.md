@@ -40,3 +40,8 @@ Two lugs for Mercedes-Benz wind shield (A2058680009), which is for A205 cabrio.
 There are several different types of plastic lugs in this wind shield, but you won't confuse them visually.
 
 ![Wind Shield Lug](./etc/img/mb-a205-windshield-lug.png)
+
+## bell-shaped-handle.py
+Bell-shaped hanging handle it's a thing you can put a lace through its top hole, tie a knot inside the handle and you have it hanging.
+
+![Bell-shaped Handle](./etc/img/bell-shaped-handle.png)
