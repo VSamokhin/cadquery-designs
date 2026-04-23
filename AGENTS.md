@@ -66,4 +66,4 @@ if __name__ == "__main__":
   - composing the model name, add to it only the most important parameters, not all of them if there are many, to distinguish one genarated file from another
 - Increase the version in the header only once per a commit and only its patch part
 - Don't forget to update README.md keeping there only general description of the model and no source code details
-- Defining a function, pass ALL its external paremeters as arguments, to those arguments which are bound to user defined configuration, supply these user defined parameters as default values
+- Defining a function, pass ALL its external parameters as arguments. To those arguments which are bound to user defined configuration, supply corresponding user defined parameters as default values

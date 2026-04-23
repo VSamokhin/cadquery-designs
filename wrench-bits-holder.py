@@ -70,13 +70,14 @@ HOUSING_CLEARANCE = 0.4
 
 def resolve_columns(bit_count: int, columns: int) -> int:
     """Pick a sensible packing width if the user requests auto layout."""
-    if columns and columns > 0:
-        return columns
-    return max(1, math.ceil(math.sqrt(bit_count)))
+    return columns if columns and columns > 0 else max(1, math.ceil(math.sqrt(bit_count)))
 
 def arrange_bit_specs(
     bit_specs: list[tuple[float, float]],
     columns: int,
+    cell_gap: float = CELL_GAP,
+    drawer_wall_thickness: float = DRAWER_WALL_THICKNESS,
+    drawer_frame_margin: float = DRAWER_FRAME_MARGIN,
 ) -> tuple[int, int, float, float, float, float, float, float, list[tuple[float, float, float]]]:
     """Return layout metadata and per-bit placement info"""
 
@@ -91,12 +92,13 @@ def arrange_bit_specs(
         max_height = max(height, max_height)
         shortest_height = min(height, shortest_height)
 
-    pitch = max_diameter + CELL_GAP
+    pitch = max_diameter + cell_gap
     footprint_x = (resolved_columns - 1) * pitch + max_diameter
     footprint_y = (rows - 1) * pitch + max_diameter
 
-    drawer_outer_x = footprint_x + 2.0 * (DRAWER_WALL_THICKNESS + DRAWER_FRAME_MARGIN)
-    drawer_outer_y = footprint_y + 2.0 * (DRAWER_WALL_THICKNESS + DRAWER_FRAME_MARGIN)
+    outer_margin = 2.0 * (drawer_wall_thickness + drawer_frame_margin)
+    drawer_outer_x = footprint_x + outer_margin
+    drawer_outer_y = footprint_y + outer_margin
     drawer_outer_z = max_height
 
     x_origin = -((resolved_columns - 1) * pitch) / 2.0
@@ -127,6 +129,14 @@ def arrange_bit_specs(
 def build_drawer(
     bit_specs: list[tuple[float, float]],
     columns: int,
+    cell_gap: float = CELL_GAP,
+    drawer_wall_thickness: float = DRAWER_WALL_THICKNESS,
+    drawer_bit_cell_depth: float = DRAWER_BIT_CELL_DEPTH,
+    pocket_diameter_clearance: float = POCKET_DIAMETER_CLEARANCE,
+    drawer_frame_margin: float = DRAWER_FRAME_MARGIN,
+    drawer_grip_radius: float = DRAWER_GRIP_RADIUS,
+    housing_clearance: float = HOUSING_CLEARANCE,
+    housing_wall_thickness: float = HOUSING_WALL_THICKNESS,
 ) -> tuple[cq.Workplane, int, int, float, float, float, float, float]:
     """Build the sliding drawer that also acts as the bit tray."""
     (
@@ -139,16 +149,22 @@ def build_drawer(
         drawer_outer_y,
         drawer_outer_z,
         placements,
-    ) = arrange_bit_specs(bit_specs, columns)
+    ) = arrange_bit_specs(
+        bit_specs,
+        columns,
+        cell_gap=cell_gap,
+        drawer_wall_thickness=drawer_wall_thickness,
+        drawer_frame_margin=drawer_frame_margin,
+    )
 
-    assert DRAWER_BIT_CELL_DEPTH <= shortest_height - 5.0, (
+    assert drawer_bit_cell_depth <= shortest_height - 5.0, (
         "Bit cell depth must be at least 5 mm smaller than the shortest bit"
     )
 
     drawer = (
         cq
-        .Workplane("XY", origin=(-HOUSING_CLEARANCE / 2.0, 0.0, HOUSING_WALL_THICKNESS))
-        .box(drawer_outer_x, drawer_outer_y, DRAWER_BIT_CELL_DEPTH + DRAWER_WALL_THICKNESS, centered=(True, True, False))
+        .Workplane("XY", origin=(-housing_clearance / 2.0, 0.0, housing_wall_thickness))
+        .box(drawer_outer_x, drawer_outer_y, drawer_bit_cell_depth + drawer_wall_thickness, centered=(True, True, False))
         )
 
     for x, y, diameter in placements:
@@ -156,43 +172,50 @@ def build_drawer(
              drawer
              .faces(">Z")
              .workplane(origin=(x, y))
-             .hole(diameter + POCKET_DIAMETER_CLEARANCE, DRAWER_BIT_CELL_DEPTH)
+             .hole(diameter + pocket_diameter_clearance, drawer_bit_cell_depth)
          )
 
     front = (
         cq
-        .Workplane("YZ", origin=(-drawer_outer_x / 2.0 - DRAWER_WALL_THICKNESS - HOUSING_CLEARANCE / 2.0, 0.0, HOUSING_WALL_THICKNESS))
-        .box(drawer_outer_y, drawer_outer_z, DRAWER_WALL_THICKNESS, centered=(True, False, False))
+        .Workplane("YZ", origin=(-drawer_outer_x / 2.0 - drawer_wall_thickness - housing_clearance / 2.0, 0.0, housing_wall_thickness))
+        .box(drawer_outer_y, drawer_outer_z, drawer_wall_thickness, centered=(True, False, False))
         )
 
-    grip_radius = min(DRAWER_GRIP_RADIUS, drawer_outer_z * 0.45)
-    grip_center_z = drawer_outer_z + HOUSING_WALL_THICKNESS
+    grip_radius = min(drawer_grip_radius, drawer_outer_z * 0.45)
+    grip_center_z = drawer_outer_z + housing_wall_thickness
     front = (
         front
         .faces("<X")
-        .workplane(origin=(-drawer_outer_x / 2.0 + DRAWER_WALL_THICKNESS / 2.0, 0.0, grip_center_z))
-        .hole(grip_radius, DRAWER_WALL_THICKNESS)
+        .workplane(origin=(-drawer_outer_x / 2.0 + drawer_wall_thickness / 2.0, 0.0, grip_center_z))
+        .hole(grip_radius, drawer_wall_thickness)
         .faces(">Z")
         .fillet(0.5)
     )
 
     return drawer.union(front), resolved_columns, rows, max_diameter, max_height, drawer_outer_x, drawer_outer_y, drawer_outer_z
 
-def build_housing(drawer_outer_x: float, drawer_outer_y: float, drawer_outer_z: float) -> cq.Workplane:
+def build_housing(
+    drawer_outer_x: float,
+    drawer_outer_y: float,
+    drawer_outer_z: float,
+    housing_clearance: float = HOUSING_CLEARANCE,
+    housing_wall_thickness: float = HOUSING_WALL_THICKNESS,
+) -> cq.Workplane:
     """Build a box-like sleeve that the drawer slides in."""
-    housing_inner_x = drawer_outer_x + HOUSING_CLEARANCE
-    housing_inner_y = drawer_outer_y + 2.0 * HOUSING_CLEARANCE
-    housing_inner_z = drawer_outer_z + HOUSING_CLEARANCE
+    housing_inner_x = drawer_outer_x + housing_clearance
+    housing_inner_y = drawer_outer_y + 2.0 * housing_clearance
+    housing_inner_z = drawer_outer_z + housing_clearance
 
-    housing_outer_x = housing_inner_x + 2.0 * HOUSING_WALL_THICKNESS
-    housing_outer_y = housing_inner_y + 2.0 * HOUSING_WALL_THICKNESS
-    housing_outer_z = housing_inner_z + 2.0 * HOUSING_WALL_THICKNESS
+    walls_margin = 2.0 * housing_wall_thickness
+    housing_outer_x = housing_inner_x + walls_margin
+    housing_outer_y = housing_inner_y + walls_margin
+    housing_outer_z = housing_inner_z + walls_margin
 
     outer = cq.Workplane("XY").box(housing_outer_x, housing_outer_y, housing_outer_z, centered=(True, True, False))
     inner = (
         cq.Workplane("XY")
-        .box(housing_inner_x + HOUSING_WALL_THICKNESS, housing_inner_y, housing_inner_z, centered=(True, True, False))
-        .translate((-HOUSING_WALL_THICKNESS / 2.0, 0.0, HOUSING_WALL_THICKNESS))
+        .box(housing_inner_x + housing_wall_thickness, housing_inner_y, housing_inner_z, centered=(True, True, False))
+        .translate((-housing_wall_thickness / 2.0, 0.0, housing_wall_thickness))
     )
 
     return outer.cut(inner)
