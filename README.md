@@ -45,3 +45,6 @@ There are several different types of plastic lugs in this wind shield, but you w
 Bell-shaped hanging handle it's a thing you can put a lace through its top hole, tie a knot inside the handle and you have it hanging.
 
 ![Bell-shaped Handle](./etc/img/bell-shaped-handle.png)
+
+## wrench-bits-holder.py
+Parametrized holder for cylindrical wrench bits with individual pocket depths and a sliding drawer.
