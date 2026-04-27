@@ -48,3 +48,5 @@ Bell-shaped hanging handle it's a thing you can put a lace through its top hole,
 
 ## wrench-bits-holder.py
 Parametrized holder for cylindrical wrench bits with individual pocket depths and a sliding drawer.
+
+![Bits Holder](./etc/img/wrench-bits-holder.png)
