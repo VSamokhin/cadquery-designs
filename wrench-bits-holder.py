@@ -202,12 +202,13 @@ def add_sliders(
     workplane_x = -drawer_outer_x / 2.0 - drawer_wall_thickness
     workplane_y = drawer_outer_y / 2.0
     latch_origin = (-drawer_outer_x / 2.0, 0.0, drawer_inner_z / 2.0 + housing_wall_thickness)
+    latch_offset = -sldier_latch_radius * 0.75
     left_slider = (
         cq
         .Workplane("XY", origin=(workplane_x, workplane_y, housing_wall_thickness))
         .box(drawer_outer_x + drawer_wall_thickness, slider_depth, drawer_inner_z, centered=(False, False, False))
         .faces(">Y")
-        .workplane(offset=-sldier_latch_radius * 0.8, origin=latch_origin)
+        .workplane(offset=latch_offset, origin=latch_origin)
         .sphere(sldier_latch_radius)
         )
     drawer = drawer.union(left_slider).union(left_slider.mirror("XZ"))
@@ -217,7 +218,7 @@ def add_sliders(
         .Workplane("XY", origin=(workplane_x, workplane_y, housing_wall_thickness))
         .box(drawer_outer_x + drawer_wall_thickness, slider_depth + housing_clearance, drawer_inner_z + housing_clearance, centered=(False, False, False))
                 .faces(">Y")
-        .workplane(offset=-sldier_latch_radius * 0.8, origin=latch_origin)
+        .workplane(offset=latch_offset, origin=latch_origin)
         .sphere(sldier_latch_radius)
         )
     housing = housing.cut(left_cutout).cut(left_cutout.mirror("XZ"))
