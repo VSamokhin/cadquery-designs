@@ -34,12 +34,11 @@
 # If printing with honeycomb infill, you may want to increase the z-hop value in your slicer
 # to avoid collisions with previously printed steps.
 
-import cq_utils
-import honeycomb
 import cadquery as cq
 from cadquery import Workplane
-from typing import Optional
 
+import cq_utils
+import honeycomb
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True
@@ -62,7 +61,7 @@ def generate_step(
         step_depth, wall_thickness,
         side_height,
         front_z_offset=0.0,
-        support_extra_height=0.0) -> tuple[Workplane, Optional[Workplane], Workplane, Workplane]:
+        support_extra_height=0.0) -> tuple[Workplane, Workplane | None, Workplane, Workplane]:
     """
     Generate a single step with given height and width
     """
@@ -134,7 +133,7 @@ def generate_step(
     return front, side, step, support
 
 def combine_parts(
-        front: Workplane, side: Optional[Workplane],
+        front: Workplane, side: Workplane | None,
         step: Workplane, support: Workplane,
         apply_honeycomb: bool,
         y_offset, z_offset, connector_z_offset,

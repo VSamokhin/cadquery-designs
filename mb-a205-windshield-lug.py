@@ -35,11 +35,13 @@
 # Use a kind of reinforced with fibers filament for the print, mine was ABS-GF.
 # Will see how good it holds out.
 
-import cq_utils
-import cadquery as cq
 import math
+from collections.abc import Sequence
+
+import cadquery as cq
 from cadquery import Workplane
-from typing import Sequence
+
+import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True

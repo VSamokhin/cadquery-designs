@@ -31,10 +31,11 @@
 # v0.0.2
 # Utility module to share code snippets across the designs
 
+import os
+
 import cadquery as cq
 from cadquery import Workplane
 from ocp_vscode import show_object
-import os
 
 
 def show_models(**kwargs: Workplane):

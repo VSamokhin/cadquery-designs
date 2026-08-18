@@ -1,0 +1,11 @@
+name: cadquery
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - cadquery>=2.6,<3
+  - pip
+  - pip:
+      - -r requirements-dev.txt
+      - cq-warehouse==0.8.0
+      - ocp-vscode==3.3.4

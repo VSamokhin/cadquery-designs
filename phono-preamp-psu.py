@@ -47,9 +47,10 @@
 # - 1x PCB for the transformer
 # - wires, cables, etc.
 
-import cq_utils
 import cadquery as cq
 from cadquery import Workplane
+
+import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True

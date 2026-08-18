@@ -1,0 +1,69 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = [
+    ".venv",
+    "exports",
+    "vulture_whitelist.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "C4",
+    "E",
+    "F",
+    "I",
+    "SIM",
+    "UP",
+    "W",
+]
+ignore = [
+    "E501",
+    "E701",
+]
+
+[tool.basedpyright]
+include = ["."]
+exclude = [
+    "**/__pycache__",
+    ".git",
+    ".venv",
+    "exports",
+    "vulture_whitelist.py",
+]
+pythonVersion = "3.12"
+pythonPlatform = "All"
+typeCheckingMode = "basic"
+reportMissingImports = "none"
+reportMissingTypeStubs = "none"
+reportAny = "none"
+reportExplicitAny = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+reportUntypedFunctionDecorator = "none"
+reportUnannotatedClassAttribute = "none"
+reportImplicitOverride = "none"
+reportUnusedCallResult = "none"
+reportUnusedParameter = "none"
+
+[tool.vulture]
+exclude = [
+    ".git",
+    ".venv",
+    "exports",
+]
+ignore_decorators = []
+ignore_names = [
+    "DO_STL_EXPORT",
+    "DO_STEP_EXPORT",
+]
+min_confidence = 80
+paths = [
+    ".",
+    "vulture_whitelist.py",
+]
+sort_by_size = true

@@ -33,8 +33,9 @@
 # It's a thing you can put a lace through its top hole, tie a knot inside the handle
 # and you have it.
 
-import cq_utils
 import cadquery as cq
+
+import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True

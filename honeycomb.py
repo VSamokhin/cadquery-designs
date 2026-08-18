@@ -33,11 +33,9 @@
 # Honeycomb infill pattern generator
 
 import math
-from typing import Optional
 
 import cadquery as cq
 from cadquery import Workplane
-
 
 _AXIS_TO_PLANE = {
     "X": "YZ",
@@ -96,7 +94,7 @@ def _honeycomb_grid(width, height, cell_size, edge_width, thickness, plane):
             .extrude(thickness / 2.0, both=True, combine=True)
             )
 
-def _resolve_orientation(solid, normal_axis: Optional[str]):
+def _resolve_orientation(solid, normal_axis: str | None):
     """
     Determine which principal axis should be treated as the normal and map the
     corresponding honeycomb plane, dimensions and translation.
@@ -138,7 +136,7 @@ def apply_honeycomb(
         cell_size,
         edge_width,
         shell_thickness,
-        normal_axis: Optional[str] = None) -> Workplane:
+        normal_axis: str | None = None) -> Workplane:
     """
     Apply a honeycomb infill to any polygonal wall solid
     """

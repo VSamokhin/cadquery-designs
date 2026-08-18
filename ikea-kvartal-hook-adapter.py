@@ -32,9 +32,9 @@
 # Hook adapter for the IKEA Kvartal gliders.
 # Print it slowing down and intensifying cooling on overhangs.
 
-import cq_utils
 import cadquery as cq
 
+import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True

@@ -1,8 +1,29 @@
 # CadQuery Designs Aimed for 3D-Printing
 
 ## Requirements
-* `cadquery` – install it with miniforge/conda for a hassle-free setup
-* I use VSCode + OCP CAD Viewer plugin, but `CQ-editor` should work as well
+Create the conda environment with:
+
+```sh
+conda env create -f environment.yml
+conda activate cadquery
+```
+
+I use VSCode + OCP CAD Viewer plugin. `CQ-editor` should work as well, but it is not part of the default environment because it currently requires the separate `cadquery` conda channel.
+
+## Static Analysis
+Install the local checks with:
+
+```sh
+pre-commit install
+```
+
+Run the full local suite with:
+
+```sh
+pre-commit run --all-files
+```
+
+The configured checks are basedpyright, Ruff, vulture, and small generic pre-commit hygiene checks for YAML, trailing whitespace, and final newlines. GitHub Actions runs the same pre-commit suite on push and pull request.
 
 ## cq_utils.py
 Just a convenient utility module to share code snippets across the designs

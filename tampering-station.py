@@ -34,14 +34,13 @@
 # My work is inspired by https://www.printables.com/model/773844-heavy-tamperstation
 # Print it with at least 5 shell/top/bottom layers and 15%+ infill for strength.
 
-from datetime import datetime
-from functools import reduce
-import cq_utils
 import math
-import cadquery as cq
-from cadquery.selectors import StringSyntaxSelector
-from cadquery.selectors import BoxSelector
+from datetime import datetime
 
+import cadquery as cq
+from cadquery.selectors import BoxSelector, StringSyntaxSelector
+
+import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True
@@ -298,7 +297,7 @@ if __name__ == "__main__":
         .rect(PORTA_HANDLE_WIDTH_X, porta_handle_length_increased)
         .cutBlind(-PORTA_HANDLE_DEPTH_Z)
         .edges(BoxSelector(porta_handle_bbox[0], porta_handle_bbox[1]))
-		.fillet(TOP_FILLET_RADIUS)
+        .fillet(TOP_FILLET_RADIUS)
         .edges(BoxSelector(porta_filter_bbox[0], porta_filter_bbox[1]))
         .fillet(CUTOUT_FILLET_RADIUS)
         .faces(">Z[-2]") # Portafilter handle screw hole
@@ -319,14 +318,14 @@ if __name__ == "__main__":
         .workplane(origin=upper_right_origin)
         .hole(UPPER_RIGHT_DIAMETER, UPPER_RIGHT_DEPTH_Z)
         .edges(BoxSelector(upper_right_bbox[0], upper_right_bbox[1]))
-		.fillet(CUTOUT_FILLET_RADIUS)
+        .fillet(CUTOUT_FILLET_RADIUS)
         .faces(">Z") # Lower left cuts
         .workplane(origin=lower_left_slots_origin)
         .pushPoints(lower_left_slots_points)
         .rect(LOWER_LEFT_SLOT_WIDTH_X, LOWER_LEFT_SLOT_LENGTH_Y)
         .cutBlind(-LOWER_LEFT_DEPTH_Z)
         .edges(BoxSelector(lower_left_slots_bbox[0], lower_left_slots_bbox[1]))
-		.fillet(CUTOUT_FILLET_RADIUS)
+        .fillet(CUTOUT_FILLET_RADIUS)
         .faces(">Z") # Lower left hole
         .workplane(origin=lower_left_hole_origin)
         .hole(LOWER_LEFT_HOLE_DIAMETER, LOWER_LEFT_DEPTH_Z)
@@ -336,7 +335,7 @@ if __name__ == "__main__":
         .workplane(origin=lower_right_origin)
         .hole(LOWER_RIGHT_DIAMETER, LOWER_RIGHT_DEPTH_Z)
         .edges(BoxSelector(lower_right_bbox[0], lower_right_bbox[1]))
-		.fillet(CUTOUT_FILLET_RADIUS)
+        .fillet(CUTOUT_FILLET_RADIUS)
         .faces("<X") # Left drawer cutout
         .workplane(origin=left_drawer_origin)
         .rect(DRAWER_WIDTH_Y, DRAWER_HEIGHT_Z)
