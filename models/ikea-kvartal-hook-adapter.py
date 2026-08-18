@@ -33,7 +33,6 @@
 # Print it slowing down and intensifying cooling on overhangs.
 
 import cadquery as cq
-
 import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)

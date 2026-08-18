@@ -33,9 +33,8 @@
 # I use these as limiters on my roller shutters.
 
 import cadquery as cq
-from cq_warehouse.thread import IsoThread
-
 import cq_utils
+from cq_warehouse.thread import IsoThread
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True

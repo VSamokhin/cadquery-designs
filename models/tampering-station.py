@@ -38,9 +38,8 @@ import math
 from datetime import datetime
 
 import cadquery as cq
-from cadquery.selectors import BoxSelector, StringSyntaxSelector
-
 import cq_utils
+from cadquery.selectors import BoxSelector, StringSyntaxSelector
 
 # Toggle exports (set True when you want STL/STEP files written)
 DO_STL_EXPORT = True

@@ -36,7 +36,6 @@ import math
 import sys
 
 import cadquery as cq
-
 import cq_utils
 
 # Toggle exports (set True when you want STL/STEP files written)
