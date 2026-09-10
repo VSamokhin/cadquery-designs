@@ -71,3 +71,13 @@ Bell-shaped hanging handle it's a thing you can put a lace through its top hole,
 Parametrized holder for cylindrical wrench bits with individual pocket depths and a sliding drawer.
 
 ![Bits Holder](./etc/img/wrench-bits-holder.png)
+
+## round-furniture-leg-spacer.py
+Round spacer sized by the furniture-leg diameter inside its raised retaining rim. Its floor-facing side is flat.
+
+![Round Furniture Spacer](./etc/img/round-furniture-leg-spacer.png)
+
+## square-furniture-leg-spacer.py
+Square spacer sized by the furniture-leg area inside its raised retaining rim. It has a flat floor face, rounded vertical edges, and can omit one edge for wall placement or two adjacent edges for corner placement.
+
+![Square Furniture Spacers](./etc/img/square-furniture-leg-spacers.png)
