@@ -67,3 +67,4 @@ if __name__ == "__main__":
 - Increase the version in the header only once per a commit and only its patch part
 - Don't forget to update README.md keeping there only general description of the model and no source code details
 - Defining a function, pass ALL its external parameters as arguments. To those arguments which are bound to user defined configuration, supply corresponding user defined parameters as default values
+- When adding a GitHub Action to a workflow, look up its latest release on GitHub first and use that version; keep the existing actions on their latest releases too
